@@ -80,6 +80,7 @@ class SessionsActivity : AppCompatActivity() {
             add(getString(R.string.best_top_speed, bests.topSpeedKmh))
             if (bests.bestShotKmh > 0) add(getString(R.string.best_shot, bests.bestShotKmh))
             if (bests.bestBowlKmh > 0) add(getString(R.string.best_bowl, bests.bestBowlKmh))
+            if (bests.bestJumpCm > 0) add(getString(R.string.best_jump, bests.bestJumpCm))
             add(
                 getString(
                     R.string.bests_totals,

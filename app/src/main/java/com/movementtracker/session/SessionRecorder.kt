@@ -72,6 +72,21 @@ class SessionRecorder(private val startedAtMillis: Long) {
         )
     }
 
+    /** Feed a detected vertical jump. */
+    fun addJump(tSec: Double, heightM: Double) {
+        val start = startTSec ?: tSec.also { startTSec = it }
+        events.add(
+            RecordedEvent(
+                tOffsetSec = tSec - start,
+                type = ActivityType.JUMP,
+                peakBallKmh = 0.0,
+                playerKmh = 0.0,
+                durationSec = 0.0,
+                extras = mapOf("heightM" to heightM),
+            )
+        )
+    }
+
     private fun updateSprintState(tSec: Double, start: Double, kmh: Double) {
         if (kmh >= SPRINT_THRESHOLD_KMH) {
             if (sprintStartSec == null) sprintStartSec = tSec

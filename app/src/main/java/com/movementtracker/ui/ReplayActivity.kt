@@ -71,13 +71,16 @@ class ReplayActivity : AppCompatActivity() {
             return
         }
         events.forEach { e ->
+            val time = formatTime(e.tOffsetSec)
             val label = when (e.type) {
-                ActivityType.SOCCER_SHOT -> R.string.replay_event_shot
-                ActivityType.CRICKET_BOWL -> R.string.replay_event_bowl
-                else -> R.string.replay_event_ball
+                ActivityType.SOCCER_SHOT -> getString(R.string.replay_event_shot, time, e.peakBallKmh)
+                ActivityType.CRICKET_BOWL -> getString(R.string.replay_event_bowl, time, e.peakBallKmh)
+                ActivityType.JUMP ->
+                    getString(R.string.replay_event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
+                else -> getString(R.string.replay_event_ball, time, e.peakBallKmh)
             }
             val button = Button(this).apply {
-                text = getString(label, formatTime(e.tOffsetSec), e.peakBallKmh)
+                text = label
                 setOnClickListener {
                     // Jump slightly before the event so the approach is visible.
                     videoView.seekTo(

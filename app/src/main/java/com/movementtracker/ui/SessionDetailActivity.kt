@@ -96,6 +96,8 @@ class SessionDetailActivity : AppCompatActivity() {
                 getString(R.string.event_soccer_shot, time, e.peakBallKmh)
             ActivityType.CRICKET_BOWL ->
                 getString(R.string.event_cricket_bowl, time, e.peakBallKmh)
+            ActivityType.JUMP ->
+                getString(R.string.event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
             ActivityType.BALL_EVENT ->
                 getString(R.string.event_ball, time, e.peakBallKmh)
         } + impactSuffix

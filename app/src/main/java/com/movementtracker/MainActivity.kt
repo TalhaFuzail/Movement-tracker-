@@ -40,6 +40,7 @@ import com.movementtracker.analysis.CalibrationManager
 import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.ImpactAudioDetector
+import com.movementtracker.analysis.JumpDetector
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
 import com.movementtracker.session.ActivityType
@@ -95,6 +96,11 @@ class MainActivity : AppCompatActivity() {
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, enriched)
         onDrillAttempt(peakBallKmh)
         announce(type, peakBallKmh)
+    }
+
+    private val jumpDetector = JumpDetector { tSec, heightM ->
+        sessionRecorder?.addJump(tSec, heightM)
+        announceJump(heightM)
     }
 
     // Impact sound detection, active only while a session is recording.
@@ -280,6 +286,7 @@ class MainActivity : AppCompatActivity() {
             playerSpeedText.text =
                 getString(R.string.player_speed_format, playerSpeed.kmPerHour)
             sessionRecorder?.addPlayerSample(result.timestampSec, playerSpeed.kmPerHour)
+            jumpDetector.update(result.timestampSec, hipCenter.y.toDouble(), metersPerPixel)
         }
 
         // --- Ball ---------------------------------------------------------
@@ -518,6 +525,12 @@ class MainActivity : AppCompatActivity() {
         }
         val phrase = getString(R.string.voice_event_format, label, peakBallKmh)
         tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "ball_event")
+    }
+
+    private fun announceJump(heightM: Double) {
+        if (!voiceEnabled || !ttsReady) return
+        val phrase = getString(R.string.voice_jump_format, heightM * 100)
+        tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "jump_event")
     }
 
     // --- Manual calibration ------------------------------------------------

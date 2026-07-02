@@ -70,6 +70,10 @@
     <string name="event_cricket_bowl">%1$s  Cricket bowl — ball %2$.1f km/h</string>
     <string name="event_ball">%1$s  Ball event — %2$.1f km/h</string>
     <string name="event_impact_suffix">" · impact heard"</string>
+    <string name="event_jump">%1$s  Jump — %2$.0f cm</string>
+    <string name="voice_jump_format">Jump, %1$.0f centimetres</string>
+    <string name="replay_event_jump">%1$s Jump %2$.0f cm</string>
+    <string name="best_jump">Highest jump: %1$.0f cm</string>
 
     <string name="suggestions_header">Suggestions</string>
 
