@@ -11,6 +11,7 @@ object ProgressStats {
         val topSpeedKmh: Double,
         val bestShotKmh: Double,
         val bestBowlKmh: Double,
+        val bestJumpCm: Double,
         val totalDistanceMeters: Double,
         val sessionCount: Int,
         /**
@@ -29,6 +30,9 @@ object ProgressStats {
         val bestBowl = sessions.flatMap { it.events }
             .filter { it.type == ActivityType.CRICKET_BOWL }
             .maxOfOrNull { it.peakBallKmh } ?: 0.0
+        val bestJumpCm = sessions.flatMap { it.events }
+            .filter { it.type == ActivityType.JUMP }
+            .maxOfOrNull { (it.extras["heightM"] ?: 0.0) * 100 } ?: 0.0
 
         val monthMillis = 30L * 24 * 60 * 60 * 1000
         val recent = sessions.filter { it.startedAtMillis > nowMillis - monthMillis }
@@ -45,6 +49,7 @@ object ProgressStats {
             topSpeedKmh = sessions.maxOf { it.topSpeedKmh },
             bestShotKmh = bestShot,
             bestBowlKmh = bestBowl,
+            bestJumpCm = bestJumpCm,
             totalDistanceMeters = sessions.sumOf { it.distanceMeters },
             sessionCount = sessions.size,
             trendPercent = trend,

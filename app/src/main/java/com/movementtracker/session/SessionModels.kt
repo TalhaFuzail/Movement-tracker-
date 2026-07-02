@@ -8,6 +8,8 @@ enum class ActivityType {
     SPRINT,
     SOCCER_SHOT,
     CRICKET_BOWL,
+    /** A vertical jump; the height in metres is in extras["heightM"]. */
+    JUMP,
     /** A fast ball was tracked but the action couldn't be classified. */
     BALL_EVENT;
 
