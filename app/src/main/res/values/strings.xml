@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Movement Tracker</string>
+    <string name="camera_permission_needed">Camera permission is required to track movement.</string>
+
+    <string name="player_speed_placeholder">Player: — km/h</string>
+    <string name="ball_speed_placeholder">Ball: — km/h</string>
+    <string name="peak_ball_speed_placeholder">Peak ball: 0.0 km/h</string>
+    <string name="ball_speed_none">Ball: — km/h</string>
+
+    <string name="player_speed_format">Player: %1$.1f km/h</string>
+    <string name="ball_speed_format">Ball: %1$.1f km/h</string>
+    <string name="peak_ball_speed_format">Peak ball: %1$.1f km/h</string>
+
+    <string name="btn_calibrate">Calibrate</string>
+    <string name="btn_reset_peak">Reset peak</string>
+
+    <string name="calibration_none">Calibration: waiting for a player…</string>
+    <string name="calibration_auto">Calibration: auto (player height ≈ 1.70 m)</string>
+    <string name="calibration_manual">Calibration: manual ✓</string>
+    <string name="calibration_instructions">Tap two points on screen that are a known real-world distance apart (e.g. two cones).</string>
+    <string name="calibration_dialog_title">Real distance between the two points</string>
+    <string name="calibration_distance_hint">Distance in metres, e.g. 10</string>
+    <string name="calibration_saved">Calibration saved.</string>
+    <string name="calibration_invalid">Please enter a valid distance in metres.</string>
+</resources>
