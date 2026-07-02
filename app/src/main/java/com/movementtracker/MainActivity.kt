@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.speech.tts.TextToSpeech
 import android.graphics.PointF
 import android.graphics.RectF
 import android.os.Bundle
@@ -40,6 +41,7 @@ import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
+import com.movementtracker.session.ActivityType
 import com.movementtracker.session.DrillTracker
 import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
@@ -85,7 +87,15 @@ class MainActivity : AppCompatActivity() {
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
         onDrillAttempt(peakBallKmh)
+        announce(type, peakBallKmh)
     }
+
+    // Voice announcements: speaks each ball speed so you don't have to walk
+    // back to the phone between attempts.
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var voiceEnabled = false
+    private lateinit var voiceButton: Button
 
     // Drill mode: N attempts against a target ball speed, with audio feedback.
     private lateinit var drillStatusText: TextView
@@ -150,6 +160,13 @@ class MainActivity : AppCompatActivity() {
         drillStatusText = findViewById(R.id.drill_status)
         drillButton = findViewById(R.id.btn_drill)
         drillButton.setOnClickListener { toggleDrill() }
+
+        voiceEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOICE, false)
+        voiceButton = findViewById(R.id.btn_voice)
+        voiceButton.text =
+            getString(if (voiceEnabled) R.string.btn_voice_on else R.string.btn_voice_off)
+        voiceButton.setOnClickListener { toggleVoice() }
+        if (voiceEnabled) initTts()
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
 
@@ -450,6 +467,34 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    // --- Voice announcements -------------------------------------------------
+
+    private fun toggleVoice() {
+        voiceEnabled = !voiceEnabled
+        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_VOICE, voiceEnabled).apply()
+        voiceButton.text =
+            getString(if (voiceEnabled) R.string.btn_voice_on else R.string.btn_voice_off)
+        if (voiceEnabled) initTts()
+    }
+
+    private fun initTts() {
+        if (tts != null) return
+        tts = TextToSpeech(this) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+        }
+    }
+
+    private fun announce(type: ActivityType, peakBallKmh: Double) {
+        if (!voiceEnabled || !ttsReady) return
+        val label = when (type) {
+            ActivityType.SOCCER_SHOT -> getString(R.string.voice_shot)
+            ActivityType.CRICKET_BOWL -> getString(R.string.voice_bowl)
+            else -> getString(R.string.voice_ball)
+        }
+        val phrase = getString(R.string.voice_event_format, label, peakBallKmh)
+        tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, "ball_event")
+    }
+
     // --- Manual calibration ------------------------------------------------
 
     private fun startCalibration() {
@@ -491,10 +536,13 @@ class MainActivity : AppCompatActivity() {
         analysisExecutor.shutdown()
         toneGenerator?.release()
         toneGenerator = null
+        tts?.shutdown()
+        tts = null
     }
 
     private companion object {
         const val BALL_DISPLAY_TIMEOUT_SEC = 0.5
         const val TONE_VOLUME = 80
+        const val PREF_VOICE = "voice_announcements"
     }
 }
