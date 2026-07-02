@@ -26,23 +26,25 @@ class OverlayView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
+    // Subtle overlay: thin white skeleton, a single accent for the ball,
+    // muted red only for calibration markers.
     private val skeletonPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#4DD0E1")
-        strokeWidth = 6f
+        color = Color.parseColor("#D9FFFFFF")
+        strokeWidth = 4f
         style = Paint.Style.STROKE
     }
     private val jointPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#00E5FF")
+        color = Color.WHITE
         style = Paint.Style.FILL
     }
     private val ballPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FFD54F")
-        strokeWidth = 6f
+        color = Color.parseColor("#2AAE7E")
+        strokeWidth = 5f
         style = Paint.Style.STROKE
     }
     private val calibrationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FF5252")
-        strokeWidth = 5f
+        color = Color.parseColor("#C75450")
+        strokeWidth = 4f
         style = Paint.Style.FILL_AND_STROKE
     }
 
@@ -96,7 +98,7 @@ class OverlayView @JvmOverloads constructor(
             canvas.drawLine(pa.x, pa.y, pb.x, pb.y, skeletonPaint)
         }
         for (p in landmarks.values) {
-            canvas.drawCircle(p.x, p.y, 7f, jointPaint)
+            canvas.drawCircle(p.x, p.y, 5f, jointPaint)
         }
 
         ballBox?.let { box ->

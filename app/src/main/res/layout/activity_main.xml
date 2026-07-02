@@ -19,15 +19,18 @@
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:orientation="vertical"
-        android:background="#99000000"
-        android:padding="12dp">
+        android:background="@color/panel_scrim"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
 
         <TextView
             android:id="@+id/player_speed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/player_speed_placeholder"
-            android:textColor="#00E5FF"
+            android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -35,8 +38,9 @@
             android:id="@+id/ball_speed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:text="@string/ball_speed_placeholder"
-            android:textColor="#FFD54F"
+            android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -44,16 +48,18 @@
             android:id="@+id/peak_ball_speed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:text="@string/peak_ball_speed_placeholder"
-            android:textColor="#FFAB40"
+            android:textColor="@color/accent"
             android:textSize="16sp" />
 
         <TextView
             android:id="@+id/calibration_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:text="@string/calibration_none"
-            android:textColor="#B0BEC5"
+            android:textColor="@color/text_secondary"
             android:textSize="13sp" />
     </LinearLayout>
 
@@ -62,7 +68,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:background="@color/panel_scrim"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -74,14 +82,12 @@
                 android:id="@+id/btn_session"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
                 android:text="@string/btn_session_start" />
 
             <Button
                 android:id="@+id/btn_sessions"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
                 android:text="@string/btn_sessions" />
 
             <Button
@@ -101,14 +107,12 @@
                 android:id="@+id/btn_calibrate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
                 android:text="@string/btn_calibrate" />
 
             <Button
                 android:id="@+id/btn_ar_calibrate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
                 android:text="@string/btn_ar_calibrate" />
 
             <Button
