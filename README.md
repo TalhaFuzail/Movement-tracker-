@@ -18,7 +18,7 @@ speeds, and can calibrate real-world scale automatically with **ARCore**.
 |---|---|
 | Player detection | [ML Kit Pose Detection](https://developers.google.com/ml-kit/vision/pose-detection) finds 33 body landmarks per frame |
 | Player speed | The hip midpoint is tracked across frames; displacement over a ~0.35 s sliding window → m/s → km/h |
-| Ball detection | ML Kit Object Detection (stream mode, multi-object) + a heuristic that picks the small, round-ish detection and follows its tracking ID |
+| Ball detection | ML Kit Object Detection (stream mode, multi-object) with a bundled TFLite classifier whose classes include soccer/cricket/tennis/base/rugby balls — labelled balls are preferred, shape heuristics (small, round-ish) are the fallback, and tracking IDs follow it across frames |
 | Ball speed | Same sliding-window math with a short (~0.12 s) window so kick peaks aren't averaged away; the **peak** is kept until you reset it |
 | Pixels → metres | **AR (best):** ARCore measures the distance to the playing surface; scale follows from the camera's focal length. **Manual:** tap two points a known distance apart. **Auto:** estimated from the player's apparent height (assumes 1.70 m) |
 | Sessions | Start/Stop from the camera screen; speed timeline, distance, sprints and ball events are saved as JSON in private app storage — nothing leaves the device |
@@ -63,9 +63,10 @@ on-device — the Pixel 8's Tensor G3 handles this comfortably in real time.
   capture rate for accurate fast-kick/throw speeds.
 - [x] **ARCore scale** — real-world scale from plane detection + camera
   intrinsics instead of manual calibration.
-- [ ] **Custom ball model** — replace the generic object detector with a
-  small TFLite model trained on sports balls (ML Kit supports custom models
-  drop-in) for much more reliable ball lock-on.
+- [x] **Custom ball model** — a bundled TFLite labeler (3.8 MB, in
+  `app/src/main/assets/`) classifies every detection; candidates labelled
+  soccer/cricket/tennis/base/rugby ball are preferred over shape heuristics
+  for much more reliable ball lock-on.
 - [ ] Multi-player tracking (pose detection currently follows one person).
 - [ ] Speed timeline chart in the session detail screen.
 

@@ -11,9 +11,10 @@ import kotlin.math.hypot
  * frames using ML Kit tracking IDs (with a nearest-neighbour fallback when
  * the tracker re-assigns IDs mid-flight, which happens on fast kicks).
  *
- * Heuristics: a ball is roughly square in aspect and small relative to the
- * frame. This works well when the ball is clearly visible; for production
- * accuracy swap in a custom ball-detection TFLite model (see README roadmap).
+ * Candidates are ranked in two tiers: detections whose classifier label is an
+ * actual ball class (soccer ball, cricket ball, tennis ball...) are always
+ * preferred; shape heuristics (roughly square aspect, small relative to the
+ * frame) filter the rest and act as a fallback when classification flickers.
  */
 class BallTracker {
 
@@ -50,12 +51,16 @@ class BallTracker {
         }
 
         val previousCenter = lastCenter
+        // Detections the classifier recognises as a ball outrank everything;
+        // classification can flicker frame-to-frame, so an active tracking ID
+        // still wins, and shape-only candidates remain as a fallback.
+        val pool = candidates.filter(::hasBallLabel).ifEmpty { candidates }
         val picked =
             candidates.firstOrNull { it.trackingId != null && it.trackingId == lastTrackingId }
                 ?: previousCenter?.let { prev ->
-                    candidates.minByOrNull { distance(center(it.boundingBox), prev) }
+                    pool.minByOrNull { distance(center(it.boundingBox), prev) }
                 }
-                ?: candidates.minByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+                ?: pool.minByOrNull { it.boundingBox.width() * it.boundingBox.height() }
                 ?: return null
 
         val pickedCenter = center(picked.boundingBox)
@@ -76,6 +81,9 @@ class BallTracker {
         lastSeenSec = -1.0
     }
 
+    private fun hasBallLabel(obj: DetectedObject) =
+        obj.labels.any { it.text.lowercase() in BALL_LABELS }
+
     private fun center(box: Rect) = PointF(box.exactCenterX(), box.exactCenterY())
 
     private fun distance(a: PointF, b: PointF) =
@@ -85,5 +93,12 @@ class BallTracker {
         const val MAX_BALL_AREA_FRACTION = 0.12f
         const val TRACK_TIMEOUT_SECONDS = 0.5
         const val MAX_REACQUIRE_JUMP_FRACTION = 0.35
+
+        // Exact class names from the bundled labeler model ("Baseball bat",
+        // "Balloon" etc. also contain "ball", hence an allowlist not contains()).
+        val BALL_LABELS = setOf(
+            "ball", "football", "soccer ball", "cricket ball", "tennis ball",
+            "baseball", "golf ball", "volleyball", "basketball", "rugby ball",
+        )
     }
 }

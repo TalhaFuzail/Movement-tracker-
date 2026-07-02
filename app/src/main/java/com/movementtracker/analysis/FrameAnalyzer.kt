@@ -6,10 +6,11 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.common.MlKitException
+import com.google.mlkit.common.model.LocalModel
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.objects.DetectedObject
 import com.google.mlkit.vision.objects.ObjectDetection
-import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
+import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
 import com.google.mlkit.vision.pose.Pose
 import com.google.mlkit.vision.pose.PoseDetection
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
@@ -46,10 +47,21 @@ class FrameAnalyzer(
             .build()
     )
 
+    // Detection boxes come from ML Kit's built-in detector; each box is then
+    // classified by the bundled labeler model, whose classes include the
+    // sports balls we care about (soccer, cricket, tennis, base, rugby...).
+    // BallTracker uses those labels to prefer real balls over other objects.
     private val objectDetector = ObjectDetection.getClient(
-        ObjectDetectorOptions.Builder()
-            .setDetectorMode(ObjectDetectorOptions.STREAM_MODE)
+        CustomObjectDetectorOptions.Builder(
+            LocalModel.Builder()
+                .setAssetFilePath("ball_labeler.tflite")
+                .build()
+        )
+            .setDetectorMode(CustomObjectDetectorOptions.STREAM_MODE)
             .enableMultipleObjects()
+            .enableClassification()
+            .setClassificationConfidenceThreshold(MIN_LABEL_CONFIDENCE)
+            .setMaxPerObjectLabelCount(3)
             .build()
     )
 
@@ -109,5 +121,6 @@ class FrameAnalyzer(
 
     private companion object {
         const val MIN_LANDMARK_CONFIDENCE = 0.5f
+        const val MIN_LABEL_CONFIDENCE = 0.25f
     }
 }
