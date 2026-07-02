@@ -85,6 +85,14 @@
     <string name="drill_done_title">Drill complete</string>
     <string name="drill_result_format">%1$d of %2$d attempts hit %3$.0f km/h.\nBest %4$.1f km/h · average %5$.1f km/h.</string>
 
+    <!-- Voice announcements -->
+    <string name="btn_voice_off">Voice off</string>
+    <string name="btn_voice_on">Voice on</string>
+    <string name="voice_shot">Shot</string>
+    <string name="voice_bowl">Bowl</string>
+    <string name="voice_ball">Ball</string>
+    <string name="voice_event_format">%1$s, %2$.0f kilometres per hour</string>
+
     <!-- Slow motion analysis -->
     <string name="btn_slowmo">Slow-mo</string>
     <string name="title_slowmo">Slow-motion analysis</string>
