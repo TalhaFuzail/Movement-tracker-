@@ -67,6 +67,7 @@ class ReplayActivity : AppCompatActivity() {
         val events = session.events.filter { it.type != ActivityType.SPRINT }
         if (events.isEmpty()) {
             findViewById<View>(R.id.replay_events_scroll).visibility = View.GONE
+            findViewById<View>(R.id.replay_hint).visibility = View.GONE
             return
         }
         events.forEach { e ->

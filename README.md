@@ -126,6 +126,9 @@ on-device — the Pixel 8's Tensor G3 handles this comfortably in real time.
   button.
 - [x] **Calibration confidence badge** — colour-coded status with an
   error band (AR/manual ≈ ±5 %, auto ≈ ±15 %).
+- [x] **In-app help** — a Help button explaining every feature in plain
+  words, plus short explainer lines on the drill dialog, charts,
+  placement grid, suggestions, replay and session list.
 - [ ] Multi-pose skeletons (two full skeletons needs a different pose model,
   e.g. MoveNet MultiPose).
 

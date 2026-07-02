@@ -15,8 +15,47 @@
     <string name="wizard_calibration_bad">✗ No scale yet — stand in view or tap Calibrate</string>
     <string name="wizard_source_ar">AR</string>
     <string name="wizard_source_manual">manual</string>
-    <string name="wizard_tip_side_on">Tip: film side-on — motion across the frame measures true, motion toward the camera doesn\'t.</string>
+    <string name="wizard_tip_side_on">Tip: film from the side — speed across the screen measures true, speed toward the camera doesn\'t.</string>
+    <string name="wizard_help_pointer">New here? Tap Help to see what every button does, in plain words.</string>
     <string name="wizard_done">Done</string>
+
+    <!-- Help: every feature explained in simple words -->
+    <string name="btn_help">Help</string>
+    <string name="help_title">What does everything do?</string>
+    <string name="help_ok">Got it</string>
+
+    <string name="help_live_title">The live numbers</string>
+    <string name="help_live_body">Point the camera at the action. "Player" is how fast the person is moving and "Ball" is how fast the ball is moving, in km/h. "Peak ball" remembers the fastest ball speed so far — tap Reset peak to set it back to 0.</string>
+
+    <string name="help_calibrate_title">Calibrate</string>
+    <string name="help_calibrate_body">To turn what the camera sees into real km/h, the app needs to know how big things really are. Easiest: just stand fully in view (auto, rough). Better: tap Calibrate and mark two points that are a known distance apart (like two cones), or enter your height. Best: AR scale, if your phone supports it. The little line at the top tells you how good the current setup is — green is trustworthy, orange is rough, red means not ready.</string>
+
+    <string name="help_session_title">Start session</string>
+    <string name="help_session_body">Tap Start session before you practise. The app records everything: your speeds, distance, every kick, bowl and jump — plus a replay video. Tap Stop session when you\'re done and it\'s saved on your phone. Nothing is uploaded anywhere.</string>
+
+    <string name="help_sessions_title">Sessions</string>
+    <string name="help_sessions_body">Your history. Tap any session to see its stats, a speed chart, tips, and the replay video. Hold a session to delete it. Export saves all your data as a file. Compare plays two replay videos on one screen so you can compare your technique.</string>
+
+    <string name="help_drill_title">Drill</string>
+    <string name="help_drill_body">A drill is simple practice with a score. Pick how many attempts (kicks or bowls) and a target speed. Every attempt is counted automatically — you hear a happy beep when you hit the target speed. At the end you get a scorecard: how many hit the target, your best and your average.</string>
+
+    <string name="help_challenge_title">Challenge a friend</string>
+    <string name="help_challenge_body">When a drill finishes, tap "Challenge a friend" to send your score as a short code (WhatsApp, SMS, anything). Your friend pastes that code into the Drill box on their phone and plays the exact same drill. When they finish, the app tells them who won.</string>
+
+    <string name="help_target_title">Target</string>
+    <string name="help_target_body">For aiming practice. Tap Target, then tap the two opposite corners of your goal on the screen. A grid with 9 squares appears. From then on every shot records where it landed (or that it missed), and the session page shows a map of your shots — darker squares mean more shots landed there.</string>
+
+    <string name="help_slowmo_title">Slow-mo</string>
+    <string name="help_slowmo_body">Very fast balls blur for the normal camera. For an accurate reading, record the kick or bowl as a slow-motion video with your phone\'s own camera app (120 or 240 fps), then open it under Slow-mo. The result is saved as a session too.</string>
+
+    <string name="help_voice_title">Voice</string>
+    <string name="help_voice_body">Voice on means the app speaks each ball speed out loud — handy when the phone is on a tripod and you\'re far away.</string>
+
+    <string name="help_share_title">Share card</string>
+    <string name="help_share_body">On a session\'s page, Share card turns your best numbers into a nice picture you can post or send to friends.</string>
+
+    <string name="help_setup_title">Setup</string>
+    <string name="help_setup_body">A live checklist for accurate speeds: phone held still, player fully in the picture, calibration ready. When everything is green you\'re good to go. One more tip: film from the side, not from behind.</string>
 
     <string name="player_speed_placeholder">Player: — km/h</string>
     <string name="ball_speed_placeholder">Ball: — km/h</string>
@@ -37,6 +76,7 @@
 
     <string name="calibrate_option_points">Mark a known distance (two taps)</string>
     <string name="calibrate_option_height">Set your height for auto calibration</string>
+    <string name="calibrate_option_what">What is calibration?</string>
     <string name="height_dialog_title">Your height in cm</string>
     <string name="height_hint">e.g. 175</string>
     <string name="height_saved">Height saved — auto calibration now assumes %1$d cm.</string>
@@ -62,6 +102,7 @@
     <string name="session_discarded_empty">Nothing was tracked — session discarded.</string>
     <string name="sessions_empty">No sessions yet.\nStart one from the camera screen.</string>
     <string name="session_row_format">%1$s\n%2$d min %3$d s · top %4$.1f km/h</string>
+    <string name="sessions_hint">Tap a session for details · hold one to delete it</string>
     <string name="btn_export">Export</string>
     <string name="export_done">Sessions exported.</string>
     <string name="export_failed">Export failed.</string>
@@ -86,9 +127,11 @@
     <string name="stat_ball_events">Ball events: %1$d</string>
 
     <string name="chart_header">Speed timeline</string>
+    <string name="chart_hint">How fast you moved during the session. The dots along the bottom are ball moments — kicks and bowls.</string>
 
     <!-- Replay -->
     <string name="title_replay">Replay</string>
+    <string name="replay_hint">Tap a moment below to jump the video right there.</string>
     <string name="btn_replay">Watch replay</string>
     <string name="replay_event_shot">%1$s Shot %2$.0f km/h</string>
     <string name="replay_event_bowl">%1$s Bowl %2$.0f km/h</string>
@@ -107,13 +150,15 @@
     <string name="best_jump">Highest jump: %1$.0f cm</string>
 
     <string name="suggestions_header">Suggestions</string>
+    <string name="suggestions_hint">Tips worked out from your own numbers in this session — not generic advice.</string>
 
     <!-- Drill mode -->
     <string name="btn_drill">Drill</string>
     <string name="btn_drill_stop">End drill</string>
     <string name="drill_dialog_title">Drill setup</string>
-    <string name="drill_count_hint">Attempts, e.g. 10</string>
-    <string name="drill_target_hint">Target ball speed in km/h, e.g. 50</string>
+    <string name="drill_explainer">Practice with a score: you pick how many attempts and a target speed. Every kick or bowl counts as one attempt — beat the target speed and it\'s a hit. Got a challenge code from a friend? Paste it below and you\'ll play their exact drill instead.</string>
+    <string name="drill_count_hint">How many attempts? e.g. 10</string>
+    <string name="drill_target_hint">Target speed in km/h, e.g. 50</string>
     <string name="drill_start">Start</string>
     <string name="drill_started">Drill started — every kick/bowl counts.</string>
     <string name="drill_cancelled">Drill ended.</string>
@@ -170,7 +215,7 @@
     <string name="share_card_footer">Measured on device with Movement Tracker</string>
 
     <!-- Challenge a friend -->
-    <string name="drill_challenge_hint">Challenge code from a friend (optional)</string>
+    <string name="drill_challenge_hint">Paste a friend\'s challenge code here (optional)</string>
     <string name="challenge_invalid">That challenge code isn\'t valid — paste the whole message.</string>
     <string name="challenge_accepted">Challenge accepted — %1$d attempts at %2$.0f km/h. Beat %3$d hits!</string>
     <string name="btn_share_challenge">Challenge a friend</string>
@@ -188,6 +233,7 @@
     <string name="target_cleared">Target cleared.</string>
     <string name="target_invalidated">Target cleared — the view changed size. Set it again.</string>
     <string name="placement_header">Shot placement</string>
+    <string name="placement_hint">Where your shots landed on the target. Darker squares = more shots there; misses count in the percentage below.</string>
     <string name="placement_accuracy">%1$d of %2$d attempts on target (%3$.0f%%)</string>
     <string name="event_zone_suffix">" · %1$s"</string>
     <string name="event_zone_miss">" · off target"</string>
