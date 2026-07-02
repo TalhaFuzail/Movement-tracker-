@@ -57,6 +57,9 @@ class OverlayView @JvmOverloads constructor(
     /** Ball bounding box in *view* coordinates, or null when not tracked. */
     private var ballBox: RectF? = null
 
+    /** Second player's bounding box in *view* coordinates, if tracked. */
+    private var player2Box: RectF? = null
+
     var calibrationMode = false
         set(value) {
             field = value
@@ -83,9 +86,14 @@ class OverlayView @JvmOverloads constructor(
         return PointF(p.x * scale + dx, p.y * scale + dy)
     }
 
-    fun update(viewLandmarks: Map<Int, PointF>, viewBallBox: RectF?) {
+    fun update(
+        viewLandmarks: Map<Int, PointF>,
+        viewBallBox: RectF?,
+        viewPlayer2Box: RectF? = null,
+    ) {
         landmarks = viewLandmarks
         ballBox = viewBallBox
+        player2Box = viewPlayer2Box
         invalidate()
     }
 
@@ -104,6 +112,10 @@ class OverlayView @JvmOverloads constructor(
         ballBox?.let { box ->
             val radius = max(box.width(), box.height()) / 2f + 8f
             canvas.drawCircle(box.centerX(), box.centerY(), radius, ballPaint)
+        }
+
+        player2Box?.let { box ->
+            canvas.drawRoundRect(box, 18f, 18f, skeletonPaint)
         }
 
         if (calibrationMode) {
