@@ -8,6 +8,8 @@ import com.movementtracker.session.ActivityType
 import com.movementtracker.session.RecordedEvent
 import com.movementtracker.session.SessionRecord
 import com.movementtracker.session.SessionStore
+import com.movementtracker.session.SuggestionEngine
+import android.view.View
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +33,15 @@ class SessionDetailActivity : AppCompatActivity() {
                 .format(Date(session.startedAtMillis))
         findViewById<TextView>(R.id.detail_stats).text = buildStats(session)
         findViewById<TextView>(R.id.detail_events).text = buildEvents(session)
+
+        val suggestions = SuggestionEngine.suggestionsFor(session)
+        if (suggestions.isNotEmpty()) {
+            findViewById<TextView>(R.id.detail_suggestions_header).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.detail_suggestions).apply {
+                visibility = View.VISIBLE
+                text = suggestions.joinToString("\n\n") { "• $it" }
+            }
+        }
     }
 
     private fun buildStats(s: SessionRecord): String {
