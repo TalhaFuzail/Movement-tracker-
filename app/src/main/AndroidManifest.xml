@@ -18,5 +18,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.SessionsActivity"
+            android:exported="false"
+            android:label="@string/title_sessions" />
+
+        <activity
+            android:name=".ui.SessionDetailActivity"
+            android:exported="false"
+            android:label="@string/title_session_detail" />
     </application>
 </manifest>

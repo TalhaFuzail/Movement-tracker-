@@ -22,12 +22,18 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.pose.PoseLandmark
+import android.content.Intent
 import com.movementtracker.analysis.BallTracker
 import com.movementtracker.analysis.CalibrationManager
 import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.SpeedCalculator
+import com.movementtracker.session.ActivityType
+import com.movementtracker.session.BallEpisodeDetector
+import com.movementtracker.session.SessionRecorder
+import com.movementtracker.session.SessionStore
 import com.movementtracker.ui.OverlayView
+import com.movementtracker.ui.SessionsActivity
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -56,6 +62,19 @@ class MainActivity : AppCompatActivity() {
     private var peakBallKmh = 0.0
     private var lastBallSeenSec = -1.0
 
+    private lateinit var sessionStore: SessionStore
+    private lateinit var sessionButton: Button
+    private var sessionRecorder: SessionRecorder? = null
+    private val ballEpisodes = BallEpisodeDetector { tSec, peakKmh, approachKmh ->
+        sessionRecorder?.addBallEvent(
+            tSec = tSec,
+            type = ActivityType.BALL_EVENT,
+            peakBallKmh = peakKmh,
+            playerKmh = approachKmh,
+            extras = mapOf("approachKmh" to approachKmh),
+        )
+    }
+
     private val requestCameraPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
@@ -81,6 +100,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_reset_peak).setOnClickListener {
             peakBallKmh = 0.0
             peakBallText.text = getString(R.string.peak_ball_speed_format, 0.0)
+        }
+
+        sessionStore = SessionStore(this)
+        sessionButton = findViewById(R.id.btn_session)
+        sessionButton.setOnClickListener { toggleSession() }
+        findViewById<Button>(R.id.btn_sessions).setOnClickListener {
+            startActivity(Intent(this, SessionsActivity::class.java))
         }
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
@@ -157,6 +183,7 @@ class MainActivity : AppCompatActivity() {
             playerSpeed.add(result.timestampSec, hipCenter, metersPerPixel)
             playerSpeedText.text =
                 getString(R.string.player_speed_format, playerSpeed.kmPerHour)
+            sessionRecorder?.addPlayerSample(result.timestampSec, playerSpeed.kmPerHour)
         }
 
         // --- Ball ---------------------------------------------------------
@@ -164,6 +191,7 @@ class MainActivity : AppCompatActivity() {
             result.objects, result.imageWidth, result.imageHeight, result.timestampSec,
         )
         var viewBallBox: RectF? = null
+        var frameBallKmh: Double? = null
         if (ball != null && metersPerPixel != null) {
             if (ballTracker.startedNewTrack) ballSpeed.reset()
 
@@ -174,6 +202,7 @@ class MainActivity : AppCompatActivity() {
 
             val center = PointF(viewBallBox.centerX(), viewBallBox.centerY())
             val kmh = ballSpeed.add(result.timestampSec, center, metersPerPixel) * 3.6
+            frameBallKmh = kmh
             peakBallKmh = max(peakBallKmh, kmh)
             lastBallSeenSec = result.timestampSec
 
@@ -185,6 +214,8 @@ class MainActivity : AppCompatActivity() {
             ballSpeedText.text = getString(R.string.ball_speed_none)
         }
 
+        ballEpisodes.update(result.timestampSec, frameBallKmh, playerSpeed.kmPerHour)
+
         // --- Status -------------------------------------------------------
         calibrationStatusText.text = when {
             calibration.isManual -> getString(R.string.calibration_manual)
@@ -193,6 +224,27 @@ class MainActivity : AppCompatActivity() {
         }
 
         overlay.update(viewLandmarks, viewBallBox)
+    }
+
+    // --- Session recording ---------------------------------------------------
+
+    private fun toggleSession() {
+        val recorder = sessionRecorder
+        if (recorder == null) {
+            sessionRecorder = SessionRecorder(System.currentTimeMillis())
+            sessionButton.text = getString(R.string.btn_session_stop)
+            Toast.makeText(this, R.string.session_started, Toast.LENGTH_SHORT).show()
+        } else {
+            sessionRecorder = null
+            sessionButton.text = getString(R.string.btn_session_start)
+            if (recorder.isEmpty) {
+                Toast.makeText(this, R.string.session_discarded_empty, Toast.LENGTH_SHORT).show()
+            } else {
+                val record = recorder.finish()
+                Thread { sessionStore.save(record) }.start()
+                Toast.makeText(this, R.string.session_saved, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // --- Manual calibration ------------------------------------------------
