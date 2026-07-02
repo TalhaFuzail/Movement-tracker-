@@ -239,6 +239,9 @@ class MainActivity : AppCompatActivity() {
 
         shakeWarningText = findViewById(R.id.shake_warning)
 
+        calibration.assumedPlayerHeightMeters =
+            getPreferences(MODE_PRIVATE).getFloat(PREF_HEIGHT_M, 1.70f).toDouble()
+
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
 
         analysisExecutor = Executors.newSingleThreadExecutor()
@@ -416,7 +419,8 @@ class MainActivity : AppCompatActivity() {
         calibrationStatusText.text = when {
             calibration.isManual && calibration.isFromAr -> getString(R.string.calibration_ar)
             calibration.isManual -> getString(R.string.calibration_manual)
-            calibration.isCalibrated -> getString(R.string.calibration_auto)
+            calibration.isCalibrated ->
+                getString(R.string.calibration_auto, calibration.assumedPlayerHeightMeters)
             else -> getString(R.string.calibration_none)
         }
 
@@ -648,8 +652,52 @@ class MainActivity : AppCompatActivity() {
     // --- Manual calibration ------------------------------------------------
 
     private fun startCalibration() {
-        overlay.calibrationMode = true
-        Toast.makeText(this, R.string.calibration_instructions, Toast.LENGTH_LONG).show()
+        AlertDialog.Builder(this)
+            .setItems(
+                arrayOf(
+                    getString(R.string.calibrate_option_points),
+                    getString(R.string.calibrate_option_height),
+                )
+            ) { _, which ->
+                when (which) {
+                    0 -> {
+                        overlay.calibrationMode = true
+                        Toast.makeText(this, R.string.calibration_instructions, Toast.LENGTH_LONG)
+                            .show()
+                    }
+                    1 -> promptPlayerHeight()
+                }
+            }
+            .show()
+    }
+
+    /**
+     * Auto calibration assumes a player height; letting the user enter their
+     * real one improves every reading taken without manual/AR calibration.
+     */
+    private fun promptPlayerHeight() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.height_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.height_dialog_title)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val cm = input.text.toString().toIntOrNull()
+                if (cm != null && cm in 100..230) {
+                    calibration.assumedPlayerHeightMeters = cm / 100.0
+                    getPreferences(MODE_PRIVATE).edit()
+                        .putFloat(PREF_HEIGHT_M, cm / 100f).apply()
+                    Toast.makeText(
+                        this, getString(R.string.height_saved, cm), Toast.LENGTH_SHORT,
+                    ).show()
+                } else {
+                    Toast.makeText(this, R.string.height_invalid, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun promptCalibrationDistance(a: PointF, b: PointF) {
@@ -718,5 +766,6 @@ class MainActivity : AppCompatActivity() {
         const val MIN_LAUNCH_TRAVEL_PX = 24.0
         const val LAUNCH_MATCH_WINDOW_SEC = 4.0
         const val SHAKE_THRESHOLD_RAD_S = 0.12
+        const val PREF_HEIGHT_M = "player_height_m"
     }
 }
