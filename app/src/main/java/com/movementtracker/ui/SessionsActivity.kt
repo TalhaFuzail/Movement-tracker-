@@ -6,8 +6,11 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONArray
 import com.movementtracker.R
 import com.movementtracker.session.ProgressStats
 import com.movementtracker.session.SessionRecord
@@ -22,10 +25,34 @@ class SessionsActivity : AppCompatActivity() {
     private lateinit var store: SessionStore
     private var sessions: List<SessionRecord> = emptyList()
 
+    private val exportLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) return@registerForActivityResult
+            val result = runCatching {
+                val json = JSONArray().also { arr ->
+                    sessions.forEach { arr.put(it.toJson()) }
+                }
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toString(2).toByteArray())
+                } ?: error("no stream")
+            }
+            Toast.makeText(
+                this,
+                if (result.isSuccess) R.string.export_done else R.string.export_failed,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sessions)
         store = SessionStore(this)
+        findViewById<View>(R.id.btn_export).setOnClickListener {
+            exportLauncher.launch(
+                "movement-tracker-sessions-" +
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
+            )
+        }
     }
 
     override fun onResume() {
@@ -70,12 +97,15 @@ class SessionsActivity : AppCompatActivity() {
     private fun showBests() {
         val header = findViewById<TextView>(R.id.bests_header)
         val body = findViewById<TextView>(R.id.bests_body)
+        val exportButton = findViewById<View>(R.id.btn_export)
         val bests = ProgressStats.compute(sessions, System.currentTimeMillis())
         if (bests == null) {
             header.visibility = View.GONE
             body.visibility = View.GONE
+            exportButton.visibility = View.GONE
             return
         }
+        exportButton.visibility = View.VISIBLE
         val lines = buildList {
             add(getString(R.string.best_top_speed, bests.topSpeedKmh))
             if (bests.bestShotKmh > 0) add(getString(R.string.best_shot, bests.bestShotKmh))

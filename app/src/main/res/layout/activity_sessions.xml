@@ -4,19 +4,36 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/bests_header"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="16dp"
-        android:text="@string/bests_header"
-        android:textAllCaps="true"
-        android:letterSpacing="0.08"
-        android:textColor="@color/text_secondary"
-        android:textSize="13sp"
-        android:visibility="gone" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/bests_header"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="16dp"
+            android:text="@string/bests_header"
+            android:textAllCaps="true"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btn_export"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:text="@string/btn_export"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/bests_body"

@@ -40,6 +40,10 @@
     <string name="session_discarded_empty">Nothing was tracked — session discarded.</string>
     <string name="sessions_empty">No sessions yet.\nStart one from the camera screen.</string>
     <string name="session_row_format">%1$s\n%2$d min %3$d s · top %4$.1f km/h</string>
+    <string name="btn_export">Export</string>
+    <string name="export_done">Sessions exported.</string>
+    <string name="export_failed">Export failed.</string>
+
     <string name="session_delete_title">Delete this session?</string>
     <string name="session_delete_confirm">Delete</string>
 
