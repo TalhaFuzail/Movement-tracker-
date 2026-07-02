@@ -1,5 +1,7 @@
 package com.movementtracker.analysis
 
+import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
 
 /**
@@ -13,6 +15,7 @@ class JumpDetector(
 ) {
 
     private var baselineY = Double.NaN
+    private var lastHipY = Double.NaN
     private var airborne = false
     private var takeoffSec = 0.0
     private var peakRiseM = 0.0
@@ -22,7 +25,21 @@ class JumpDetector(
     fun update(tSec: Double, hipY: Double, metersPerPixel: Double?) {
         if (metersPerPixel == null) return
         if (lastTSec >= 0 && tSec - lastTSec > RESET_GAP_SEC) reset()
+        val dt = if (lastTSec < 0) 0.0 else tSec - lastTSec
         lastTSec = tSec
+
+        // Pose detection can re-target a different person between consecutive
+        // frames; a vertical speed no human jump produces means the hips we're
+        // watching aren't the same hips — re-anchor instead of "detecting" it.
+        if (!lastHipY.isNaN() && dt > 1e-3 &&
+            abs(hipY - lastHipY) * metersPerPixel / dt > MAX_VERTICAL_SPEED_MS
+        ) {
+            reset()
+            lastTSec = tSec
+            lastHipY = hipY
+            return
+        }
+        lastHipY = hipY
 
         if (baselineY.isNaN()) {
             baselineY = hipY
@@ -36,8 +53,10 @@ class JumpDetector(
                 takeoffSec = tSec
                 peakRiseM = riseM
             } else {
-                // Track slow posture/framing changes without chasing a jump.
-                baselineY = baselineY * BASELINE_KEEP + hipY * (1 - BASELINE_KEEP)
+                // Track slow posture/framing changes without chasing a jump;
+                // time-based decay so behavior doesn't depend on frame rate.
+                val keep = exp(-dt / BASELINE_TAU_SEC)
+                baselineY = baselineY * keep + hipY * (1 - keep)
             }
         } else {
             peakRiseM = max(peakRiseM, riseM)
@@ -56,6 +75,7 @@ class JumpDetector(
 
     private fun reset() {
         baselineY = Double.NaN
+        lastHipY = Double.NaN
         airborne = false
         peakRiseM = 0.0
     }
@@ -66,7 +86,10 @@ class JumpDetector(
         const val LANDED_BELOW_M = 0.05
         const val MIN_FLIGHT_SEC = 0.25
         const val MAX_FLIGHT_SEC = 1.4
-        const val BASELINE_KEEP = 0.95
+        /** Baseline EMA time constant; ~2 s so a crouch doesn't drag it down. */
+        const val BASELINE_TAU_SEC = 2.0
         const val RESET_GAP_SEC = 0.6
+        /** Takeoff for a 1.4 m jump is ~5.2 m/s; anything above this is a glitch. */
+        const val MAX_VERTICAL_SPEED_MS = 7.0
     }
 }

@@ -103,14 +103,23 @@ class MainActivity : AppCompatActivity() {
     private var sessionRecorder: SessionRecorder? = null
 
     // Replay video: recorded only while a session runs, kept only if saved.
+    // Each recording carries its own target holder — finalization is async,
+    // so a back-to-back session must not share state with the previous one.
+    private class ReplayTarget {
+        @Volatile
+        var fileName: String? = null
+    }
+
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
-    private var pendingVideoFileName: String? = null
+    private var activeReplayTarget: ReplayTarget? = null
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
-        // The camera timestamp and the audio detector share the boot clock,
-        // so a mic spike near the event means the strike was actually heard.
+        // A mic spike near the event's start (the strike moment) means the
+        // hit was actually heard. Impact times are converted to the camera
+        // clock before comparing.
+        val impactCameraSec = lastImpactSoundSec - cameraClockOffsetSec
         var enriched =
-            if (kotlin.math.abs(tSec - lastImpactSoundSec) < IMPACT_MATCH_WINDOW_SEC) {
+            if (kotlin.math.abs(tSec - impactCameraSec) < IMPACT_MATCH_WINDOW_SEC) {
                 extras + ("impactConfirmed" to 1.0)
             } else extras
         if (kotlin.math.abs(tSec - lastLaunchTimeSec) < LAUNCH_MATCH_WINDOW_SEC) {
@@ -148,8 +157,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Impact sound detection, active only while a session is recording.
+    // Impacts are stamped with elapsedRealtime; camera frames use the camera
+    // clock, whose base is device-dependent — the offset measured each frame
+    // in onFrame bridges the two before comparing.
     @Volatile
     private var lastImpactSoundSec = -1000.0
+    private var cameraClockOffsetSec = 0.0
     private val impactDetector = ImpactAudioDetector { tSec -> lastImpactSoundSec = tSec }
 
     private val requestAudioPermission =
@@ -215,6 +228,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         sessionStore = SessionStore(this)
+        sessionStore.cleanupTempVideos() // no recording can be active yet
         sessionButton = findViewById(R.id.btn_session)
         sessionButton.setOnClickListener { toggleSession() }
         findViewById<Button>(R.id.btn_sessions).setOnClickListener {
@@ -319,6 +333,9 @@ class MainActivity : AppCompatActivity() {
     private fun onFrame(result: FrameResult) {
         overlay.setSourceImageSize(result.imageWidth, result.imageHeight)
         applyPendingArCalibration(result)
+        sessionRecorder?.anchorStart(result.timestampSec)
+        cameraClockOffsetSec =
+            android.os.SystemClock.elapsedRealtime() / 1000.0 - result.timestampSec
 
         // --- Player -------------------------------------------------------
         val viewLandmarks = result.landmarks.mapValues { (_, p) -> overlay.imageToView(p) }
@@ -350,7 +367,8 @@ class MainActivity : AppCompatActivity() {
                 val ys = result.landmarks.values.map { it.y }
                 RectF(xs.min(), ys.min(), xs.max(), ys.max())
             }
-            val person2 = personTracker.pick(result.objects, poseBox, result.timestampSec)
+            val person2 =
+                personTracker.pick(result.objects, poseBox, result.imageWidth, result.timestampSec)
             if (person2 != null) {
                 if (personTracker.startedNewTrack) player2Speed.reset()
                 val box = person2.boundingBox
@@ -405,6 +423,10 @@ class MainActivity : AppCompatActivity() {
             result.timestampSec - lastBallSeenSec > BALL_DISPLAY_TIMEOUT_SEC
         ) {
             ballSpeedText.text = getString(R.string.ball_speed_none)
+            ballTrail.clear()
+            if (result.timestampSec - lastLaunchTimeSec > LAUNCH_DISPLAY_SEC) {
+                launchAngleText.visibility = android.view.View.GONE
+            }
         }
 
         val ballViewCenter = viewBallBox?.let { PointF(it.centerX(), it.centerY()) }
@@ -504,33 +526,36 @@ class MainActivity : AppCompatActivity() {
             sessionRecorder = null
             sessionButton.text = getString(R.string.btn_session_start)
             if (recorder.isEmpty) {
-                pendingVideoFileName = null
                 Toast.makeText(this, R.string.session_discarded_empty, Toast.LENGTH_SHORT).show()
             } else {
                 val record = recorder.finish()
-                pendingVideoFileName = "${record.startedAtMillis}-${record.id}.mp4"
+                activeReplayTarget?.fileName = "${record.startedAtMillis}-${record.id}.mp4"
                 Thread { sessionStore.save(record) }.start()
                 Toast.makeText(this, R.string.session_saved, Toast.LENGTH_SHORT).show()
             }
             activeRecording?.stop()
             activeRecording = null
+            activeReplayTarget = null
             impactDetector.stop()
         }
     }
 
     private fun startReplayRecording() {
         val capture = videoCapture ?: return
-        val temp = sessionStore.tempVideoFile().also { it.delete() }
+        val temp = sessionStore.newTempVideoFile()
+        val target = ReplayTarget()
+        activeReplayTarget = target
         activeRecording = capture.output
             .prepareRecording(this, FileOutputOptions.Builder(temp).build())
             .start(ContextCompat.getMainExecutor(this)) { event ->
+                // temp and target are captured per recording, so a late
+                // Finalize can never touch the next session's file.
                 if (event is VideoRecordEvent.Finalize) {
-                    val name = pendingVideoFileName
-                    pendingVideoFileName = null
+                    val name = target.fileName
                     if (!event.hasError() && name != null) {
-                        Thread { sessionStore.finalizeVideo(name) }.start()
+                        Thread { sessionStore.finalizeVideo(temp, name) }.start()
                     } else {
-                        sessionStore.tempVideoFile().delete()
+                        temp.delete()
                     }
                 }
             }
@@ -625,11 +650,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun beep(hit: Boolean) {
-        val generator = toneGenerator
-            ?: ToneGenerator(AudioManager.STREAM_MUSIC, TONE_VOLUME).also { toneGenerator = it }
-        generator.startTone(
-            if (hit) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP,
-        )
+        // ToneGenerator construction throws when audio resources are
+        // unavailable; a missing beep must not crash a running drill.
+        runCatching {
+            val generator = toneGenerator
+                ?: ToneGenerator(AudioManager.STREAM_MUSIC, TONE_VOLUME)
+                    .also { toneGenerator = it }
+            generator.startTone(
+                if (hit) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP,
+            )
+        }
     }
 
     // --- Voice announcements -------------------------------------------------
@@ -775,13 +805,14 @@ class MainActivity : AppCompatActivity() {
         const val BALL_DISPLAY_TIMEOUT_SEC = 0.5
         const val TONE_VOLUME = 80
         const val PREF_VOICE = "voice_announcements"
-        const val IMPACT_MATCH_WINDOW_SEC = 2.5
+        const val IMPACT_MATCH_WINDOW_SEC = 1.5
         const val PLAYER2_DISPLAY_TIMEOUT_SEC = 1.0
         const val TRAIL_SECONDS = 1.2
         const val LAUNCH_SPEED_KMH = 20.0
         const val LAUNCH_MEASURE_SEC = 0.15
         const val MIN_LAUNCH_TRAVEL_PX = 24.0
-        const val LAUNCH_MATCH_WINDOW_SEC = 4.0
+        const val LAUNCH_MATCH_WINDOW_SEC = 1.0
+        const val LAUNCH_DISPLAY_SEC = 6.0
         const val SHAKE_THRESHOLD_RAD_S = 0.12
         const val PREF_HEIGHT_M = "player_height_m"
         const val PREF_ONBOARDED = "onboarded"

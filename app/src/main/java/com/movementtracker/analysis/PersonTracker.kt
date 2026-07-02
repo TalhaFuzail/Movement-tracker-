@@ -29,6 +29,7 @@ class PersonTracker {
         objects: List<DetectedObject>,
         /** Bounding box of the pose-tracked player in image coords, if any. */
         posePlayerBox: RectF?,
+        imageWidth: Int,
         tSec: Double,
     ): DetectedObject? {
         startedNewTrack = false
@@ -52,10 +53,16 @@ class PersonTracker {
                 ?: candidates.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
                 ?: return null
 
-        startedNewTrack = lastCenter == null ||
-            picked.trackingId == null || picked.trackingId != lastTrackingId
+        // A null/changed tracking ID alone isn't a new person — the detector
+        // drops IDs routinely. Only a changed ID combined with a large
+        // positional jump means we're following someone else now.
+        val pickedCenter = center(picked.boundingBox)
+        val idChanged = picked.trackingId == null || picked.trackingId != lastTrackingId
+        val jumped = previousCenter != null &&
+            distance(pickedCenter, previousCenter) > imageWidth * MAX_REACQUIRE_JUMP_FRACTION
+        startedNewTrack = lastCenter == null || (idChanged && jumped)
         lastTrackingId = picked.trackingId
-        lastCenter = center(picked.boundingBox)
+        lastCenter = pickedCenter
         lastSeenSec = tSec
         return picked
     }
@@ -82,5 +89,6 @@ class PersonTracker {
     private companion object {
         const val TRACK_TIMEOUT_SECONDS = 0.8
         const val MAX_POSE_OVERLAP = 0.4f
+        const val MAX_REACQUIRE_JUMP_FRACTION = 0.35
     }
 }

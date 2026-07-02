@@ -21,6 +21,7 @@ class BallTracker {
     private var lastTrackingId: Int? = null
     private var lastCenter: PointF? = null
     private var lastSeenSec = -1.0
+    private var unlabelledIdStreak = 0
 
     /** True when the current pick started a new track (speed history must reset). */
     var startedNewTrack = false
@@ -53,10 +54,21 @@ class BallTracker {
         val previousCenter = lastCenter
         // Detections the classifier recognises as a ball outrank everything;
         // classification can flicker frame-to-frame, so an active tracking ID
-        // still wins, and shape-only candidates remain as a fallback.
-        val pool = candidates.filter(::hasBallLabel).ifEmpty { candidates }
-        val picked =
+        // still wins — unless it has gone unlabelled for a while with a
+        // labelled ball in view, which means we locked onto the wrong object.
+        val labelled = candidates.filter(::hasBallLabel)
+        val pool = labelled.ifEmpty { candidates }
+        val idMatch =
             candidates.firstOrNull { it.trackingId != null && it.trackingId == lastTrackingId }
+        if (idMatch != null && labelled.isNotEmpty() && !hasBallLabel(idMatch)) {
+            unlabelledIdStreak++
+        } else {
+            unlabelledIdStreak = 0
+        }
+        val idLockBroken = unlabelledIdStreak >= MAX_UNLABELLED_ID_FRAMES
+        if (idLockBroken) unlabelledIdStreak = 0
+        val picked =
+            (if (idLockBroken) null else idMatch)
                 ?: previousCenter?.let { prev ->
                     pool.minByOrNull { distance(center(it.boundingBox), prev) }
                 }
@@ -79,6 +91,7 @@ class BallTracker {
         lastTrackingId = null
         lastCenter = null
         lastSeenSec = -1.0
+        unlabelledIdStreak = 0
     }
 
     private fun hasBallLabel(obj: DetectedObject) =
@@ -93,6 +106,8 @@ class BallTracker {
         const val MAX_BALL_AREA_FRACTION = 0.12f
         const val TRACK_TIMEOUT_SECONDS = 0.5
         const val MAX_REACQUIRE_JUMP_FRACTION = 0.35
+        /** ~0.25 s at 30 fps of the locked object never being labelled a ball. */
+        const val MAX_UNLABELLED_ID_FRAMES = 8
 
         // Exact class names from the bundled labeler model ("Baseball bat",
         // "Balloon" etc. also contain "ball", hence an allowlist not contains()).
