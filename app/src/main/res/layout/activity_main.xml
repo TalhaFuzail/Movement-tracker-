@@ -64,6 +64,15 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/launch_angle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/drill_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
