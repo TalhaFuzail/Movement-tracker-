@@ -25,14 +25,28 @@ class CalibrationManager(
     val metersPerPixel: Double?
         get() = manualMetersPerPixel ?: autoMetersPerPixel
 
+    /** True when the manual scale came from AR measurement, not user taps. */
+    var isFromAr = false
+        private set
+
     fun setManual(knownDistanceMeters: Double, measuredDistancePixels: Double) {
         if (knownDistanceMeters > 0 && measuredDistancePixels > 1) {
             manualMetersPerPixel = knownDistanceMeters / measuredDistancePixels
+            isFromAr = false
+        }
+    }
+
+    /** Directly sets the view-space scale (used by AR calibration). */
+    fun setManualMetersPerPixel(value: Double, fromAr: Boolean) {
+        if (value > 0) {
+            manualMetersPerPixel = value
+            isFromAr = fromAr
         }
     }
 
     fun clearManual() {
         manualMetersPerPixel = null
+        isFromAr = false
     }
 
     /**

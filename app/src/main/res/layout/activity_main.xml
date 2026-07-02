@@ -105,6 +105,13 @@
                 android:text="@string/btn_calibrate" />
 
             <Button
+                android:id="@+id/btn_ar_calibrate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:text="@string/btn_ar_calibrate" />
+
+            <Button
                 android:id="@+id/btn_reset_peak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
