@@ -15,6 +15,7 @@ object SuggestionEngine {
         val out = mutableListOf<String>()
         out += soccerSuggestions(session.events.filter { it.type == ActivityType.SOCCER_SHOT })
         out += bowlingSuggestions(session.events.filter { it.type == ActivityType.CRICKET_BOWL })
+        out += placementSuggestions(session)
         out += sprintSuggestions(session)
         return out
     }
@@ -55,6 +56,28 @@ object SuggestionEngine {
                 out += fmt(
                     "The ball leaves at %.1f× your foot speed — clean instep contact typically gives 1.2–1.5×. Strike through the ball's centre with a locked ankle.",
                     transfer,
+                )
+            }
+        }
+
+        // Technique at the strike moment, measured from the pose skeleton.
+        val kneeAngles = shots.mapNotNull { it.extras["kneeAngleDeg"] }
+        if (kneeAngles.isNotEmpty()) {
+            val avgKnee = kneeAngles.average()
+            if (avgKnee < 140) {
+                out += fmt(
+                    "Your kicking knee is bent to about %.0f° at contact — power comes from striking as the knee snaps toward full extension (150–170°). Plant slightly further from the ball and let the leg whip through.",
+                    avgKnee,
+                )
+            }
+        }
+        val followThroughs = shots.mapNotNull { it.extras["followThroughPct"] }
+        if (followThroughs.isNotEmpty()) {
+            val avgFollow = followThroughs.average()
+            if (avgFollow < 25) {
+                out += fmt(
+                    "Your follow-through stops low — the kicking foot rises to only %.0f%% of body height after contact. Swing through the ball toward the target, not just to it.",
+                    avgFollow,
                 )
             }
         }
@@ -126,6 +149,58 @@ object SuggestionEngine {
                     approachAvg,
                 )
             }
+        }
+
+        // Technique near release, measured from the pose skeleton.
+        val elbowAngles = bowls.mapNotNull { it.extras["elbowAngleDeg"] }
+        if (elbowAngles.isNotEmpty()) {
+            val avgElbow = elbowAngles.average()
+            if (avgElbow < 150) {
+                out += fmt(
+                    "Your bowling arm is bent to about %.0f° near release — a straighter arm arc converts more shoulder speed into ball speed (and keeps the action legal).",
+                    avgElbow,
+                )
+            }
+        }
+        val releaseHeights = bowls.mapNotNull { it.extras["releaseHeightPct"] }
+        if (releaseHeights.isNotEmpty()) {
+            val avgRelease = releaseHeights.average()
+            if (avgRelease < 15) {
+                out += fmt(
+                    "Your wrist only gets %.0f%% of your height above your head at the top of the arc — reach up through the delivery for a taller release; it adds both pace and bounce.",
+                    avgRelease,
+                )
+            }
+        }
+        return out
+    }
+
+    // --- Shot placement -------------------------------------------------------
+
+    /** Zone names match the 3×3 target grid, row-major from top-left. */
+    private val zoneNames = listOf(
+        "top left", "top centre", "top right",
+        "middle left", "centre", "middle right",
+        "bottom left", "bottom centre", "bottom right",
+    )
+
+    private fun placementSuggestions(session: SessionRecord): List<String> {
+        val placed = session.events.mapNotNull { it.extras["placementZone"]?.toInt() }
+        if (placed.size < 3) return emptyList()
+        val out = mutableListOf<String>()
+
+        val onTarget = placed.filter { it in 0..8 }
+        out += fmt(
+            "Target practice — %d of %d attempts on target (%.0f%%).",
+            onTarget.size, placed.size, onTarget.size * 100.0 / placed.size,
+        )
+
+        val favourite = onTarget.groupingBy { it }.eachCount().maxByOrNull { it.value }
+        if (favourite != null && onTarget.size >= 3 && favourite.value * 2 >= onTarget.size) {
+            out += fmt(
+                "Most of your on-target attempts land %s — practise picking other zones so keepers can't read you.",
+                zoneNames[favourite.key],
+            )
         }
         return out
     }

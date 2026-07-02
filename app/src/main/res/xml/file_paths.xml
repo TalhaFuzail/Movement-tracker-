@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Share cards are rendered into cache/share/ and exposed via FileProvider. -->
+<paths>
+    <cache-path
+        name="share"
+        path="share/" />
+</paths>

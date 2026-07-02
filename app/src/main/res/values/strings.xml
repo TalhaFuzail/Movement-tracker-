@@ -3,9 +3,20 @@
     <string name="app_name">Movement Tracker</string>
     <string name="camera_permission_needed">Camera permission is required to track movement.</string>
 
-    <string name="onboarding_title">Three things for accurate speeds</string>
-    <string name="onboarding_body">1. Film side-on — motion across the frame measures true, motion toward the camera doesn\'t.\n\n2. Keep the phone still — lean it against something or use a tripod.\n\n3. Calibrate — tap Calibrate to set your height, mark a known distance, or use AR scale.</string>
-    <string name="onboarding_ok">Got it</string>
+    <!-- Guided setup wizard -->
+    <string name="btn_setup">Setup</string>
+    <string name="wizard_title">Setup check</string>
+    <string name="wizard_still_ok">✓ Phone is still</string>
+    <string name="wizard_still_bad">✗ Phone is moving — prop it up or use a tripod</string>
+    <string name="wizard_player_ok">✓ Player fully in frame</string>
+    <string name="wizard_player_bad">✗ Step back until the whole player is visible</string>
+    <string name="wizard_calibration_ok">✓ Scale calibrated (%1$s, about ±5%%)</string>
+    <string name="wizard_calibration_auto" formatted="false">△ Auto scale only (rough, ±15%) — Calibrate for accuracy</string>
+    <string name="wizard_calibration_bad">✗ No scale yet — stand in view or tap Calibrate</string>
+    <string name="wizard_source_ar">AR</string>
+    <string name="wizard_source_manual">manual</string>
+    <string name="wizard_tip_side_on">Tip: film side-on — motion across the frame measures true, motion toward the camera doesn\'t.</string>
+    <string name="wizard_done">Done</string>
 
     <string name="player_speed_placeholder">Player: — km/h</string>
     <string name="ball_speed_placeholder">Ball: — km/h</string>
@@ -31,9 +42,9 @@
     <string name="height_saved">Height saved — auto calibration now assumes %1$d cm.</string>
     <string name="height_invalid">Please enter a height between 100 and 230 cm.</string>
 
-    <string name="calibration_none">Calibration: waiting for a player…</string>
-    <string name="calibration_auto">Calibration: auto (player height ≈ %1$.2f m)</string>
-    <string name="calibration_manual">Calibration: manual ✓</string>
+    <string name="calibration_none">Calibration: none — waiting for a player…</string>
+    <string name="calibration_auto">Calibration: auto ±15%% (assumes %1$.2f m height) — Calibrate to improve</string>
+    <string name="calibration_manual" formatted="false">Calibration: manual ✓ (about ±5%)</string>
     <string name="calibration_instructions">Tap two points on screen that are a known real-world distance apart (e.g. two cones).</string>
     <string name="calibration_dialog_title">Real distance between the two points</string>
     <string name="calibration_distance_hint">Distance in metres, e.g. 10</string>
@@ -143,5 +154,61 @@
     <string name="ar_unavailable">ARCore is not available on this device.</string>
     <string name="ar_camera_busy">Camera unavailable for AR right now.</string>
     <string name="ar_calibration_applied">AR calibration applied.</string>
-    <string name="calibration_ar">Calibration: AR ✓</string>
+    <string name="calibration_ar" formatted="false">Calibration: AR ✓ (about ±5%)</string>
+
+    <!-- Share card -->
+    <string name="btn_share_card">Share card</string>
+    <string name="share_chooser_title">Share session</string>
+    <string name="share_card_failed">Couldn\'t create the share image.</string>
+    <string name="share_unit_kmh">km/h</string>
+    <string name="share_unit_cm">cm</string>
+    <string name="share_headline_shot">FASTEST SHOT</string>
+    <string name="share_headline_bowl">FASTEST BOWL</string>
+    <string name="share_headline_ball">FASTEST BALL</string>
+    <string name="share_headline_jump">HIGHEST JUMP</string>
+    <string name="share_headline_top_speed">TOP SPEED</string>
+    <string name="share_card_footer">Measured on device with Movement Tracker</string>
+
+    <!-- Challenge a friend -->
+    <string name="drill_challenge_hint">Challenge code from a friend (optional)</string>
+    <string name="challenge_invalid">That challenge code isn\'t valid — paste the whole message.</string>
+    <string name="challenge_accepted">Challenge accepted — %1$d attempts at %2$.0f km/h. Beat %3$d hits!</string>
+    <string name="btn_share_challenge">Challenge a friend</string>
+    <string name="challenge_message">I hit %1$d of %2$d attempts at %3$.0f km/h (best %4$.1f km/h) in Movement Tracker. Beat that!\n\nPaste this code into Drill to accept:\n%5$s</string>
+    <string name="challenge_result_win">You beat your friend — they hit %1$d of %2$d (best %3$.1f km/h). 🏆</string>
+    <string name="challenge_result_lose">Your friend wins — they hit %1$d of %2$d (best %3$.1f km/h). Rematch?</string>
+    <string name="challenge_result_tie">Dead heat — %1$d hits each and a matching %2$.1f km/h best.</string>
+    <string name="drill_vs_status_format">Drill %1$d/%2$d · you %3$d hits · friend %4$d</string>
+
+    <!-- Shot placement target -->
+    <string name="btn_target">Target</string>
+    <string name="btn_target_clear">Clear target</string>
+    <string name="target_instructions">Tap the two opposite corners of the goal (or any target area).</string>
+    <string name="target_set">Target set — shot placement will be recorded.</string>
+    <string name="target_cleared">Target cleared.</string>
+    <string name="placement_header">Shot placement</string>
+    <string name="placement_accuracy">%1$d of %2$d attempts on target (%3$.0f%%)</string>
+    <string name="event_zone_suffix">" · %1$s"</string>
+    <string name="event_zone_miss">" · off target"</string>
+    <string-array name="placement_zones">
+        <item>top left</item>
+        <item>top centre</item>
+        <item>top right</item>
+        <item>middle left</item>
+        <item>centre</item>
+        <item>middle right</item>
+        <item>bottom left</item>
+        <item>bottom centre</item>
+        <item>bottom right</item>
+    </string-array>
+
+    <!-- Side-by-side comparison -->
+    <string name="btn_compare">Compare</string>
+    <string name="title_compare">Side-by-side</string>
+    <string name="compare_pick_first">Pick the first session</string>
+    <string name="compare_pick_second">Pick the second session</string>
+    <string name="compare_hint">Cue a moment under each clip, then play both together.</string>
+    <string name="btn_play_both">Play both</string>
+    <string name="btn_pause_both">Pause</string>
+    <string name="compare_needs_videos">Comparing needs two sessions with replay videos.</string>
 </resources>

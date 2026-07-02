@@ -80,6 +80,51 @@ class OverlayView @JvmOverloads constructor(
     /** Called when the user has tapped the second calibration point. */
     var onCalibrationPointsReady: ((PointF, PointF) -> Unit)? = null
 
+    // --- Shot placement target ---------------------------------------------
+    // A goal (or any target area) marked by tapping two opposite corners.
+    // While set, it is drawn as a 3×3 grid and ball positions map to zones.
+
+    var targetMode = false
+        set(value) {
+            field = value
+            if (value) targetCorners.clear()
+            invalidate()
+        }
+
+    private val targetCorners = mutableListOf<PointF>()
+
+    /** Called when the user has tapped the second target corner. */
+    var onTargetCornersReady: ((PointF, PointF) -> Unit)? = null
+
+    /** Target area in view coordinates, or null when no target is set. */
+    var targetRect: RectF? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    val hasTarget: Boolean get() = targetRect != null
+
+    /** Zone index (0..8, row-major from top-left) for a view point, or null if outside. */
+    fun zoneAt(p: PointF): Int? {
+        val rect = targetRect ?: return null
+        if (!rect.contains(p.x, p.y)) return null
+        val col = ((p.x - rect.left) / rect.width() * 3).toInt().coerceIn(0, 2)
+        val row = ((p.y - rect.top) / rect.height() * 3).toInt().coerceIn(0, 2)
+        return row * 3 + col
+    }
+
+    private val targetPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#E0B44A")
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+    }
+    private val targetGridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#90E0B44A")
+        strokeWidth = 2f
+        style = Paint.Style.STROKE
+    }
+
     fun setSourceImageSize(width: Int, height: Int) {
         imageWidth = width
         imageHeight = height
@@ -136,6 +181,21 @@ class OverlayView @JvmOverloads constructor(
             canvas.drawRoundRect(box, 18f, 18f, skeletonPaint)
         }
 
+        targetRect?.let { rect ->
+            canvas.drawRect(rect, targetPaint)
+            for (i in 1..2) {
+                val gx = rect.left + rect.width() * i / 3f
+                canvas.drawLine(gx, rect.top, gx, rect.bottom, targetGridPaint)
+                val gy = rect.top + rect.height() * i / 3f
+                canvas.drawLine(rect.left, gy, rect.right, gy, targetGridPaint)
+            }
+        }
+        if (targetMode) {
+            for (p in targetCorners) {
+                canvas.drawCircle(p.x, p.y, 14f, targetPaint)
+            }
+        }
+
         if (calibrationMode) {
             for (p in calibrationPoints) {
                 canvas.drawCircle(p.x, p.y, 14f, calibrationPaint)
@@ -148,16 +208,27 @@ class OverlayView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!calibrationMode) return super.onTouchEvent(event)
-        if (event.action == MotionEvent.ACTION_DOWN && calibrationPoints.size < 2) {
-            calibrationPoints.add(PointF(event.x, event.y))
-            invalidate()
-            if (calibrationPoints.size == 2) {
-                onCalibrationPointsReady?.invoke(calibrationPoints[0], calibrationPoints[1])
+        if (calibrationMode) {
+            if (event.action == MotionEvent.ACTION_DOWN && calibrationPoints.size < 2) {
+                calibrationPoints.add(PointF(event.x, event.y))
+                invalidate()
+                if (calibrationPoints.size == 2) {
+                    onCalibrationPointsReady?.invoke(calibrationPoints[0], calibrationPoints[1])
+                }
             }
             return true
         }
-        return true
+        if (targetMode) {
+            if (event.action == MotionEvent.ACTION_DOWN && targetCorners.size < 2) {
+                targetCorners.add(PointF(event.x, event.y))
+                invalidate()
+                if (targetCorners.size == 2) {
+                    onTargetCornersReady?.invoke(targetCorners[0], targetCorners[1])
+                }
+            }
+            return true
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun performClick(): Boolean {

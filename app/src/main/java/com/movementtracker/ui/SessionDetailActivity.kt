@@ -1,9 +1,13 @@
 package com.movementtracker.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import com.movementtracker.R
 import com.movementtracker.session.ActivityType
 import com.movementtracker.session.RecordedEvent
@@ -11,6 +15,7 @@ import com.movementtracker.session.SessionRecord
 import com.movementtracker.session.SessionStore
 import com.movementtracker.session.SuggestionEngine
 import android.view.View
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,11 +47,15 @@ class SessionDetailActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<View>(R.id.btn_share_card).setOnClickListener { shareCard(session, store) }
+
         findViewById<TextView>(R.id.detail_title).text =
             SimpleDateFormat("EEEE d MMMM, HH:mm", Locale.getDefault())
                 .format(Date(session.startedAtMillis))
         findViewById<TextView>(R.id.detail_stats).text = buildStats(session)
         findViewById<TextView>(R.id.detail_events).text = buildEvents(session)
+
+        showPlacement(session)
 
         if (session.samples.size >= 2) {
             findViewById<TextView>(R.id.detail_chart_header).visibility = View.VISIBLE
@@ -63,6 +72,83 @@ class SessionDetailActivity : AppCompatActivity() {
                 visibility = View.VISIBLE
                 text = suggestions.joinToString("\n\n") { "• $it" }
             }
+        }
+    }
+
+    /**
+     * Renders the session onto a share-card image (using a replay frame from
+     * the best moment as the background when one exists) and hands it to the
+     * system share sheet. Rendering and PNG encoding run off the main thread.
+     */
+    private fun shareCard(session: SessionRecord, store: SessionStore) {
+        Thread {
+            val file = runCatching {
+                val frame = store.videoFor(session.id)?.let { grabBestFrame(it, session) }
+                val card = ShareCardRenderer.render(this, session, frame)
+                val dir = File(cacheDir, "share").apply { mkdirs() }
+                File(dir, "session-${session.id}.png").apply {
+                    outputStream().use { card.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                }
+            }.getOrNull()
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (file == null) {
+                    Toast.makeText(this, R.string.share_card_failed, Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                val uri = FileProvider.getUriForFile(this, FILE_PROVIDER_AUTHORITY, file)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(
+                    Intent.createChooser(send, getString(R.string.share_chooser_title))
+                )
+            }
+        }.start()
+    }
+
+    /** A video frame from the session's best ball event (or the start). */
+    private fun grabBestFrame(video: File, session: SessionRecord): Bitmap? {
+        val bestSec = session.events
+            .filter { it.type != ActivityType.SPRINT }
+            .maxByOrNull { it.peakBallKmh }
+            ?.tOffsetSec ?: 0.0
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(video.absolutePath)
+            retriever.getFrameAtTime(
+                (bestSec * 1_000_000).toLong(),
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+            )
+        } catch (_: Exception) {
+            null
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
+
+    /** Shows the 3×3 placement heat grid when the session has target data. */
+    private fun showPlacement(session: SessionRecord) {
+        val zones = session.events.mapNotNull { it.extras["placementZone"]?.toInt() }
+        if (zones.isEmpty()) return
+
+        val counts = IntArray(9)
+        zones.filter { it in 0..8 }.forEach { counts[it]++ }
+        val onTarget = zones.count { it in 0..8 }
+
+        findViewById<View>(R.id.detail_placement_header).visibility = View.VISIBLE
+        findViewById<PlacementGridView>(R.id.detail_placement_grid).apply {
+            visibility = View.VISIBLE
+            setCounts(counts)
+        }
+        findViewById<TextView>(R.id.detail_placement_accuracy).apply {
+            visibility = View.VISIBLE
+            text = getString(
+                R.string.placement_accuracy,
+                onTarget, zones.size, onTarget * 100.0 / zones.size,
+            )
         }
     }
 
@@ -91,6 +177,17 @@ class SessionDetailActivity : AppCompatActivity() {
             if (e.extras["impactConfirmed"] == 1.0) getString(R.string.event_impact_suffix) else ""
         val launchSuffix = e.extras["launchAngleDeg"]
             ?.let { getString(R.string.event_launch_suffix, it) } ?: ""
+        val zoneSuffix = e.extras["placementZone"]?.let { zone ->
+            val index = zone.toInt()
+            if (index in 0..8) {
+                getString(
+                    R.string.event_zone_suffix,
+                    resources.getStringArray(R.array.placement_zones)[index],
+                )
+            } else {
+                getString(R.string.event_zone_miss)
+            }
+        } ?: ""
         return when (e.type) {
             ActivityType.SPRINT ->
                 getString(R.string.event_sprint, time, e.playerKmh, e.durationSec)
@@ -102,10 +199,11 @@ class SessionDetailActivity : AppCompatActivity() {
                 getString(R.string.event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
             ActivityType.BALL_EVENT ->
                 getString(R.string.event_ball, time, e.peakBallKmh)
-        } + launchSuffix + impactSuffix
+        } + launchSuffix + zoneSuffix + impactSuffix
     }
 
     companion object {
         const val EXTRA_SESSION_ID = "session_id"
+        const val FILE_PROVIDER_AUTHORITY = "com.movementtracker.fileprovider"
     }
 }

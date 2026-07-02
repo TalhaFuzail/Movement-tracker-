@@ -49,6 +49,8 @@ import com.movementtracker.analysis.PersonTracker
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
 import com.movementtracker.session.ActivityType
+import com.movementtracker.session.ChallengeCodec
+import com.movementtracker.session.ChallengeResult
 import com.movementtracker.session.DrillTracker
 import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
@@ -60,6 +62,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.min
 
 class MainActivity : AppCompatActivity() {
 
@@ -125,6 +128,15 @@ class MainActivity : AppCompatActivity() {
         if (kotlin.math.abs(tSec - lastLaunchTimeSec) < LAUNCH_MATCH_WINDOW_SEC) {
             enriched = enriched + ("launchAngleDeg" to lastLaunchAngleDeg)
         }
+        if (overlay.hasTarget) {
+            // tSec is the episode's start (the strike); the ball crosses the
+            // target after that, so any zone recorded since then belongs to
+            // this event. -1 records a miss so accuracy can be computed.
+            val zone =
+                if (lastTargetZoneTimeSec >= tSec - TARGET_MATCH_LEAD_SEC) lastTargetZone else -1
+            enriched = enriched + ("placementZone" to zone.toDouble())
+            lastTargetZoneTimeSec = -1000.0
+        }
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, enriched)
         onDrillAttempt(peakBallKmh)
         announce(type, peakBallKmh)
@@ -155,6 +167,25 @@ class MainActivity : AppCompatActivity() {
 
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
     }
+
+    // Shot placement: while a target is set, remember the last grid zone the
+    // ball was seen in so the next ball event can be tagged with it.
+    private lateinit var targetButton: Button
+    private var lastTargetZone = -1
+    private var lastTargetZoneTimeSec = -1000.0
+
+    // Guided setup: a live checklist (phone still / player in frame /
+    // calibrated) shown on first launch and from the Setup button.
+    private lateinit var setupPanel: android.view.View
+    private lateinit var wizardStillRow: TextView
+    private lateinit var wizardPlayerRow: TextView
+    private lateinit var wizardCalibrationRow: TextView
+    private var playerFullyVisible = false
+
+    // Status colors for the wizard rows and the calibration confidence badge.
+    private var colorGood = 0
+    private var colorCaution = 0
+    private var colorWarn = 0
 
     // Impact sound detection, active only while a session is recording.
     // Impacts are stamped with elapsedRealtime; camera frames use the camera
@@ -243,6 +274,33 @@ class MainActivity : AppCompatActivity() {
         drillStatusText = findViewById(R.id.drill_status)
         drillButton = findViewById(R.id.btn_drill)
         drillButton.setOnClickListener { toggleDrill() }
+
+        colorGood = ContextCompat.getColor(this, R.color.status_good)
+        colorCaution = ContextCompat.getColor(this, R.color.status_caution)
+        colorWarn = ContextCompat.getColor(this, R.color.status_warn)
+
+        targetButton = findViewById(R.id.btn_target)
+        targetButton.setOnClickListener { toggleTarget() }
+        overlay.onTargetCornersReady = { a, b -> onTargetCornersPlaced(a, b) }
+
+        setupPanel = findViewById(R.id.setup_wizard)
+        wizardStillRow = findViewById(R.id.wizard_row_still)
+        wizardPlayerRow = findViewById(R.id.wizard_row_player)
+        wizardCalibrationRow = findViewById(R.id.wizard_row_calibration)
+        findViewById<Button>(R.id.btn_setup).setOnClickListener {
+            setupPanel.visibility =
+                if (setupPanel.visibility == android.view.View.VISIBLE) android.view.View.GONE
+                else android.view.View.VISIBLE
+            updateWizard()
+        }
+        findViewById<Button>(R.id.btn_wizard_calibrate).setOnClickListener {
+            // Hide the panel first: two-tap calibration needs the whole screen.
+            setupPanel.visibility = android.view.View.GONE
+            startCalibration()
+        }
+        findViewById<Button>(R.id.btn_wizard_done).setOnClickListener {
+            setupPanel.visibility = android.view.View.GONE
+        }
 
         voiceEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOICE, false)
         voiceButton = findViewById(R.id.btn_voice)
@@ -340,6 +398,10 @@ class MainActivity : AppCompatActivity() {
         // --- Player -------------------------------------------------------
         val viewLandmarks = result.landmarks.mapValues { (_, p) -> overlay.imageToView(p) }
 
+        playerFullyVisible = viewLandmarks.containsKey(PoseLandmark.NOSE) &&
+            (viewLandmarks.containsKey(PoseLandmark.LEFT_ANKLE) ||
+                viewLandmarks.containsKey(PoseLandmark.RIGHT_ANKLE))
+
         if (viewLandmarks.isNotEmpty()) {
             val ys = viewLandmarks.values.map { it.y }
             val personHeightPx = (ys.max() - ys.min())
@@ -408,6 +470,11 @@ class MainActivity : AppCompatActivity() {
             peakBallKmh = max(peakBallKmh, kmh)
             lastBallSeenSec = result.timestampSec
 
+            overlay.zoneAt(center)?.let { zone ->
+                lastTargetZone = zone
+                lastTargetZoneTimeSec = result.timestampSec
+            }
+
             if (ballTracker.startedNewTrack) ballTrail.clear()
             ballTrail.addLast(result.timestampSec to center)
             while (ballTrail.isNotEmpty() &&
@@ -440,15 +507,96 @@ class MainActivity : AppCompatActivity() {
         )
 
         // --- Status -------------------------------------------------------
-        calibrationStatusText.text = when {
-            calibration.isManual && calibration.isFromAr -> getString(R.string.calibration_ar)
-            calibration.isManual -> getString(R.string.calibration_manual)
+        // Confidence badge: the calibration source decides how much the
+        // numbers can be trusted, so say so — color-coded, with the error band.
+        val (statusText, statusColor) = when {
+            calibration.isManual && calibration.isFromAr ->
+                getString(R.string.calibration_ar) to colorGood
+            calibration.isManual -> getString(R.string.calibration_manual) to colorGood
             calibration.isCalibrated ->
-                getString(R.string.calibration_auto, calibration.assumedPlayerHeightMeters)
-            else -> getString(R.string.calibration_none)
+                getString(
+                    R.string.calibration_auto, calibration.assumedPlayerHeightMeters,
+                ) to colorCaution
+            else -> getString(R.string.calibration_none) to colorWarn
         }
+        calibrationStatusText.text = statusText
+        calibrationStatusText.setTextColor(statusColor)
+
+        updateWizard()
 
         overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box, ballTrail.map { it.second })
+    }
+
+    // --- Guided setup wizard ---------------------------------------------------
+
+    /** Refreshes the live checklist; cheap no-op while the panel is hidden. */
+    private fun updateWizard() {
+        if (setupPanel.visibility != android.view.View.VISIBLE) return
+
+        val still = smoothedRotationRate <= SHAKE_THRESHOLD_RAD_S
+        wizardStillRow.text =
+            getString(if (still) R.string.wizard_still_ok else R.string.wizard_still_bad)
+        wizardStillRow.setTextColor(if (still) colorGood else colorWarn)
+
+        wizardPlayerRow.text = getString(
+            if (playerFullyVisible) R.string.wizard_player_ok else R.string.wizard_player_bad
+        )
+        wizardPlayerRow.setTextColor(if (playerFullyVisible) colorGood else colorWarn)
+
+        when {
+            calibration.isManual -> {
+                wizardCalibrationRow.text = getString(
+                    R.string.wizard_calibration_ok,
+                    getString(
+                        if (calibration.isFromAr) R.string.wizard_source_ar
+                        else R.string.wizard_source_manual
+                    ),
+                )
+                wizardCalibrationRow.setTextColor(colorGood)
+            }
+            calibration.isCalibrated -> {
+                wizardCalibrationRow.text = getString(R.string.wizard_calibration_auto)
+                wizardCalibrationRow.setTextColor(colorCaution)
+            }
+            else -> {
+                wizardCalibrationRow.text = getString(R.string.wizard_calibration_bad)
+                wizardCalibrationRow.setTextColor(colorWarn)
+            }
+        }
+    }
+
+    // --- Shot placement target -------------------------------------------------
+
+    private fun toggleTarget() {
+        when {
+            overlay.targetMode -> {
+                overlay.targetMode = false
+                targetButton.text = getString(R.string.btn_target)
+            }
+            overlay.hasTarget -> {
+                overlay.targetRect = null
+                targetButton.text = getString(R.string.btn_target)
+                Toast.makeText(this, R.string.target_cleared, Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                overlay.targetMode = true
+                Toast.makeText(this, R.string.target_instructions, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun onTargetCornersPlaced(a: PointF, b: PointF) {
+        overlay.targetMode = false
+        val rect = RectF(min(a.x, b.x), min(a.y, b.y), max(a.x, b.x), max(a.y, b.y))
+        if (rect.width() < MIN_TARGET_SIZE_PX || rect.height() < MIN_TARGET_SIZE_PX) {
+            // Two taps almost on top of each other — start over.
+            overlay.targetMode = true
+            Toast.makeText(this, R.string.target_instructions, Toast.LENGTH_SHORT).show()
+            return
+        }
+        overlay.targetRect = rect
+        targetButton.text = getString(R.string.btn_target_clear)
+        Toast.makeText(this, R.string.target_set, Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -562,18 +710,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * First-launch note: setup quality (side-on, still phone, calibration)
-     * determines accuracy more than anything in the code, so say it once.
+     * First launch opens the setup wizard: setup quality (side-on, still
+     * phone, calibration) determines accuracy more than anything in the code,
+     * and live checkmarks teach it faster than a wall of text.
      */
     private fun maybeShowOnboarding() {
         val prefs = getPreferences(MODE_PRIVATE)
         if (prefs.getBoolean(PREF_ONBOARDED, false)) return
         prefs.edit().putBoolean(PREF_ONBOARDED, true).apply()
-        AlertDialog.Builder(this)
-            .setTitle(R.string.onboarding_title)
-            .setMessage(R.string.onboarding_body)
-            .setPositiveButton(R.string.onboarding_ok, null)
-            .show()
+        setupPanel.visibility = android.view.View.VISIBLE
     }
 
     // --- Drill mode ----------------------------------------------------------
@@ -595,23 +740,47 @@ class MainActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             hint = getString(R.string.drill_target_hint)
         }
+        val challengeInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = getString(R.string.drill_challenge_hint)
+        }
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             val pad = (16 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, 0)
             addView(countInput)
             addView(targetInput)
+            addView(challengeInput)
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.drill_dialog_title)
             .setView(container)
             .setPositiveButton(R.string.drill_start) { _, _ ->
-                val count = countInput.text.toString().toIntOrNull() ?: 10
-                val target = targetInput.text.toString().toDoubleOrNull() ?: 50.0
-                drill = DrillTracker(count.coerceIn(1, 100), target.coerceAtLeast(1.0))
+                val challengeText = challengeInput.text.toString()
+                val rival = ChallengeCodec.decode(challengeText)
+                if (challengeText.isNotBlank() && rival == null) {
+                    Toast.makeText(this, R.string.challenge_invalid, Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                drill = if (rival != null) {
+                    // A challenge fixes the rules: same attempts, same target.
+                    Toast.makeText(
+                        this,
+                        getString(
+                            R.string.challenge_accepted,
+                            rival.attempts, rival.targetKmh, rival.hitCount,
+                        ),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    DrillTracker(rival.attempts, rival.targetKmh, rival)
+                } else {
+                    val count = countInput.text.toString().toIntOrNull() ?: 10
+                    val target = targetInput.text.toString().toDoubleOrNull() ?: 50.0
+                    Toast.makeText(this, R.string.drill_started, Toast.LENGTH_SHORT).show()
+                    DrillTracker(count.coerceIn(1, 100), target.coerceAtLeast(1.0))
+                }
                 drillButton.text = getString(R.string.btn_drill_stop)
                 updateDrillStatus()
-                Toast.makeText(this, R.string.drill_started, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -626,27 +795,78 @@ class MainActivity : AppCompatActivity() {
             drill = null
             drillButton.text = getString(R.string.btn_drill)
             drillStatusText.visibility = android.view.View.GONE
+            val message = StringBuilder(
+                getString(
+                    R.string.drill_result_format,
+                    activeDrill.hitCount, activeDrill.targetCount, activeDrill.targetKmh,
+                    activeDrill.bestKmh, activeDrill.averageKmh,
+                )
+            )
+            activeDrill.rival?.let { rival ->
+                message.append("\n\n").append(challengeVerdict(activeDrill, rival))
+            }
             AlertDialog.Builder(this)
                 .setTitle(R.string.drill_done_title)
-                .setMessage(
-                    getString(
-                        R.string.drill_result_format,
-                        activeDrill.hitCount, activeDrill.targetCount, activeDrill.targetKmh,
-                        activeDrill.bestKmh, activeDrill.averageKmh,
-                    )
-                )
+                .setMessage(message)
                 .setPositiveButton(android.R.string.ok, null)
+                .setNeutralButton(R.string.btn_share_challenge) { _, _ ->
+                    shareChallenge(activeDrill)
+                }
                 .show()
         }
+    }
+
+    /** More hits wins; equal hits fall back to the faster best attempt. */
+    private fun challengeVerdict(drill: DrillTracker, rival: ChallengeResult): String = when {
+        drill.hitCount > rival.hitCount ->
+            getString(R.string.challenge_result_win, rival.hitCount, rival.attempts, rival.bestKmh)
+        drill.hitCount < rival.hitCount ->
+            getString(R.string.challenge_result_lose, rival.hitCount, rival.attempts, rival.bestKmh)
+        drill.bestKmh > rival.bestKmh ->
+            getString(R.string.challenge_result_win, rival.hitCount, rival.attempts, rival.bestKmh)
+        drill.bestKmh < rival.bestKmh ->
+            getString(R.string.challenge_result_lose, rival.hitCount, rival.attempts, rival.bestKmh)
+        else -> getString(R.string.challenge_result_tie, rival.hitCount, rival.bestKmh)
+    }
+
+    /** Sends this drill's scorecard as a paste-able challenge code. */
+    private fun shareChallenge(drill: DrillTracker) {
+        val code = ChallengeCodec.encode(
+            ChallengeResult(
+                attempts = drill.targetCount,
+                targetKmh = drill.targetKmh,
+                hitCount = drill.hitCount,
+                bestKmh = drill.bestKmh,
+                averageKmh = drill.averageKmh,
+            )
+        )
+        val text = getString(
+            R.string.challenge_message,
+            drill.hitCount, drill.targetCount, drill.targetKmh, drill.bestKmh, code,
+        )
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(send, getString(R.string.btn_share_challenge)))
     }
 
     private fun updateDrillStatus() {
         val activeDrill = drill ?: return
         drillStatusText.visibility = android.view.View.VISIBLE
-        drillStatusText.text = getString(
-            R.string.drill_status_format,
-            activeDrill.attemptCount, activeDrill.targetCount, activeDrill.bestKmh,
-        )
+        val rival = activeDrill.rival
+        drillStatusText.text = if (rival != null) {
+            getString(
+                R.string.drill_vs_status_format,
+                activeDrill.attemptCount, activeDrill.targetCount,
+                activeDrill.hitCount, rival.hitCount,
+            )
+        } else {
+            getString(
+                R.string.drill_status_format,
+                activeDrill.attemptCount, activeDrill.targetCount, activeDrill.bestKmh,
+            )
+        }
     }
 
     private fun beep(hit: Boolean) {
@@ -816,5 +1036,8 @@ class MainActivity : AppCompatActivity() {
         const val SHAKE_THRESHOLD_RAD_S = 0.12
         const val PREF_HEIGHT_M = "player_height_m"
         const val PREF_ONBOARDED = "onboarded"
+        /** How far before the episode start a recorded zone still counts. */
+        const val TARGET_MATCH_LEAD_SEC = 0.3
+        const val MIN_TARGET_SIZE_PX = 40f
     }
 }

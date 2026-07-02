@@ -26,6 +26,14 @@
             android:visibility="gone" />
 
         <Button
+            android:id="@+id/btn_compare"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_compare"
+            android:visibility="gone" />
+
+        <Button
             android:id="@+id/btn_export"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
