@@ -39,6 +39,7 @@ import com.movementtracker.analysis.BallTracker
 import com.movementtracker.analysis.CalibrationManager
 import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
+import com.movementtracker.analysis.ImpactAudioDetector
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
 import com.movementtracker.session.ActivityType
@@ -85,10 +86,26 @@ class MainActivity : AppCompatActivity() {
     private var activeRecording: Recording? = null
     private var pendingVideoFileName: String? = null
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
-        sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
+        // The camera timestamp and the audio detector share the boot clock,
+        // so a mic spike near the event means the strike was actually heard.
+        val enriched =
+            if (kotlin.math.abs(tSec - lastImpactSoundSec) < IMPACT_MATCH_WINDOW_SEC) {
+                extras + ("impactConfirmed" to 1.0)
+            } else extras
+        sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, enriched)
         onDrillAttempt(peakBallKmh)
         announce(type, peakBallKmh)
     }
+
+    // Impact sound detection, active only while a session is recording.
+    @Volatile
+    private var lastImpactSoundSec = -1000.0
+    private val impactDetector = ImpactAudioDetector { tSec -> lastImpactSoundSec = tSec }
+
+    private val requestAudioPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted && sessionRecorder != null) impactDetector.start()
+        }
 
     // Voice announcements: speaks each ball speed so you don't have to walk
     // back to the phone between attempts.
@@ -350,6 +367,13 @@ class MainActivity : AppCompatActivity() {
             sessionRecorder = SessionRecorder(System.currentTimeMillis())
             sessionButton.text = getString(R.string.btn_session_stop)
             startReplayRecording()
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED
+            ) {
+                impactDetector.start()
+            } else {
+                requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+            }
             Toast.makeText(this, R.string.session_started, Toast.LENGTH_SHORT).show()
         } else {
             sessionRecorder = null
@@ -365,6 +389,7 @@ class MainActivity : AppCompatActivity() {
             }
             activeRecording?.stop()
             activeRecording = null
+            impactDetector.stop()
         }
     }
 
@@ -534,6 +559,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         frameAnalyzer?.shutdown()
         analysisExecutor.shutdown()
+        impactDetector.stop()
         toneGenerator?.release()
         toneGenerator = null
         tts?.shutdown()
@@ -544,5 +570,6 @@ class MainActivity : AppCompatActivity() {
         const val BALL_DISPLAY_TIMEOUT_SEC = 0.5
         const val TONE_VOLUME = 80
         const val PREF_VOICE = "voice_announcements"
+        const val IMPACT_MATCH_WINDOW_SEC = 2.5
     }
 }

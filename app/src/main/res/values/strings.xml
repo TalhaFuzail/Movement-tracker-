@@ -69,6 +69,7 @@
     <string name="event_soccer_shot">%1$s  Soccer shot — ball %2$.1f km/h</string>
     <string name="event_cricket_bowl">%1$s  Cricket bowl — ball %2$.1f km/h</string>
     <string name="event_ball">%1$s  Ball event — %2$.1f km/h</string>
+    <string name="event_impact_suffix">" · impact heard"</string>
 
     <string name="suggestions_header">Suggestions</string>
 

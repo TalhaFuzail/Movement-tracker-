@@ -87,6 +87,8 @@ class SessionDetailActivity : AppCompatActivity() {
 
     private fun formatEvent(e: RecordedEvent): String {
         val time = String.format(Locale.US, "%d:%02d", (e.tOffsetSec / 60).toInt(), (e.tOffsetSec % 60).toInt())
+        val impactSuffix =
+            if (e.extras["impactConfirmed"] == 1.0) getString(R.string.event_impact_suffix) else ""
         return when (e.type) {
             ActivityType.SPRINT ->
                 getString(R.string.event_sprint, time, e.playerKmh, e.durationSec)
@@ -96,7 +98,7 @@ class SessionDetailActivity : AppCompatActivity() {
                 getString(R.string.event_cricket_bowl, time, e.peakBallKmh)
             ActivityType.BALL_EVENT ->
                 getString(R.string.event_ball, time, e.peakBallKmh)
-        }
+        } + impactSuffix
     }
 
     companion object {
