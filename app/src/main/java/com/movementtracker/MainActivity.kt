@@ -246,6 +246,8 @@ class MainActivity : AppCompatActivity() {
 
         analysisExecutor = Executors.newSingleThreadExecutor()
 
+        maybeShowOnboarding()
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
         ) {
@@ -534,6 +536,21 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
+    /**
+     * First-launch note: setup quality (side-on, still phone, calibration)
+     * determines accuracy more than anything in the code, so say it once.
+     */
+    private fun maybeShowOnboarding() {
+        val prefs = getPreferences(MODE_PRIVATE)
+        if (prefs.getBoolean(PREF_ONBOARDED, false)) return
+        prefs.edit().putBoolean(PREF_ONBOARDED, true).apply()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.onboarding_title)
+            .setMessage(R.string.onboarding_body)
+            .setPositiveButton(R.string.onboarding_ok, null)
+            .show()
+    }
+
     // --- Drill mode ----------------------------------------------------------
 
     private fun toggleDrill() {
@@ -767,5 +784,6 @@ class MainActivity : AppCompatActivity() {
         const val LAUNCH_MATCH_WINDOW_SEC = 4.0
         const val SHAKE_THRESHOLD_RAD_S = 0.12
         const val PREF_HEIGHT_M = "player_height_m"
+        const val PREF_ONBOARDED = "onboarded"
     }
 }
