@@ -20,8 +20,15 @@
     <string name="btn_calibrate">Calibrate</string>
     <string name="btn_reset_peak">Reset peak</string>
 
+    <string name="calibrate_option_points">Mark a known distance (two taps)</string>
+    <string name="calibrate_option_height">Set your height for auto calibration</string>
+    <string name="height_dialog_title">Your height in cm</string>
+    <string name="height_hint">e.g. 175</string>
+    <string name="height_saved">Height saved — auto calibration now assumes %1$d cm.</string>
+    <string name="height_invalid">Please enter a height between 100 and 230 cm.</string>
+
     <string name="calibration_none">Calibration: waiting for a player…</string>
-    <string name="calibration_auto">Calibration: auto (player height ≈ 1.70 m)</string>
+    <string name="calibration_auto">Calibration: auto (player height ≈ %1$.2f m)</string>
     <string name="calibration_manual">Calibration: manual ✓</string>
     <string name="calibration_instructions">Tap two points on screen that are a known real-world distance apart (e.g. two cones).</string>
     <string name="calibration_dialog_title">Real distance between the two points</string>
