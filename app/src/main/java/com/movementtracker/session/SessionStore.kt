@@ -63,4 +63,14 @@ class SessionStore(context: Context) {
     fun videoFor(id: String): File? =
         (videoDir.listFiles() ?: emptyArray())
             .firstOrNull { it.name.endsWith("-$id.mp4") }
+
+    /**
+     * Ids of all sessions that have a replay video, from one directory scan —
+     * cheaper than calling [videoFor] per session when listing many.
+     */
+    fun sessionIdsWithVideo(): Set<String> =
+        (videoDir.listFiles() ?: emptyArray())
+            .filter { it.name.endsWith(".mp4") && !it.name.endsWith(".tmp.mp4") }
+            .map { it.name.removeSuffix(".mp4").substringAfterLast('-') }
+            .toSet()
 }

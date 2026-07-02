@@ -96,6 +96,9 @@ class OverlayView @JvmOverloads constructor(
     /** Called when the user has tapped the second target corner. */
     var onTargetCornersReady: ((PointF, PointF) -> Unit)? = null
 
+    /** Called when a set target was dropped because the view was resized. */
+    var onTargetInvalidated: (() -> Unit)? = null
+
     /** Target area in view coordinates, or null when no target is set. */
     var targetRect: RectF? = null
         set(value) {
@@ -209,26 +212,40 @@ class OverlayView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (calibrationMode) {
-            if (event.action == MotionEvent.ACTION_DOWN && calibrationPoints.size < 2) {
-                calibrationPoints.add(PointF(event.x, event.y))
-                invalidate()
-                if (calibrationPoints.size == 2) {
-                    onCalibrationPointsReady?.invoke(calibrationPoints[0], calibrationPoints[1])
-                }
+            return handleTwoTap(event, calibrationPoints) { a, b ->
+                onCalibrationPointsReady?.invoke(a, b)
             }
-            return true
         }
         if (targetMode) {
-            if (event.action == MotionEvent.ACTION_DOWN && targetCorners.size < 2) {
-                targetCorners.add(PointF(event.x, event.y))
-                invalidate()
-                if (targetCorners.size == 2) {
-                    onTargetCornersReady?.invoke(targetCorners[0], targetCorners[1])
-                }
+            return handleTwoTap(event, targetCorners) { a, b ->
+                onTargetCornersReady?.invoke(a, b)
             }
-            return true
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun handleTwoTap(
+        event: MotionEvent,
+        points: MutableList<PointF>,
+        onReady: (PointF, PointF) -> Unit,
+    ): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN && points.size < 2) {
+            points.add(PointF(event.x, event.y))
+            invalidate()
+            if (points.size == 2) onReady(points[0], points[1])
+        }
+        return true
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // The target lives in view pixels; a resize (rotation) makes it point
+        // at the wrong part of the scene, so drop it rather than mis-score shots.
+        if (oldw != 0 && oldh != 0 && (w != oldw || h != oldh) && (targetRect != null || targetMode)) {
+            targetMode = false
+            targetRect = null
+            onTargetInvalidated?.invoke()
+        }
     }
 
     override fun performClick(): Boolean {

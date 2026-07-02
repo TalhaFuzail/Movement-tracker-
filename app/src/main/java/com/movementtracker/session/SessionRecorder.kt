@@ -81,6 +81,24 @@ class SessionRecorder(private val startedAtMillis: Long) {
         )
     }
 
+    /**
+     * A slow ball can cross the target *after* its episode already closed
+     * (episodes end when the ball drops below ~8 km/h). When that happens the
+     * event was recorded as a miss; upgrade it if the crossing follows within
+     * [windowSec] of the strike.
+     */
+    fun attachLatePlacement(tSec: Double, zone: Int, windowSec: Double) {
+        val start = startTSec ?: return
+        val index = events.indexOfLast { it.extras.containsKey("placementZone") }
+        if (index < 0) return
+        val event = events[index]
+        if (event.extras["placementZone"] != -1.0) return
+        if (tSec - start - event.tOffsetSec > windowSec) return
+        events[index] = event.copy(
+            extras = event.extras + ("placementZone" to zone.toDouble())
+        )
+    }
+
     /** Feed a detected vertical jump. */
     fun addJump(tSec: Double, heightM: Double) {
         val start = startTSec ?: tSec.also { startTSec = it }

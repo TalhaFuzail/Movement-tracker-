@@ -63,7 +63,8 @@ class SessionsActivity : AppCompatActivity() {
      * one after the other, then open them stacked in [CompareActivity].
      */
     private fun pickCompareSessions() {
-        val withVideo = sessions.filter { store.videoFor(it.id) != null }
+        val idsWithVideo = store.sessionIdsWithVideo()
+        val withVideo = sessions.filter { it.id in idsWithVideo }
         if (withVideo.size < 2) {
             Toast.makeText(this, R.string.compare_needs_videos, Toast.LENGTH_SHORT).show()
             return
@@ -76,9 +77,7 @@ class SessionsActivity : AppCompatActivity() {
             .setTitle(R.string.compare_pick_first)
             .setItems(labels) { _, first ->
                 val rest = withVideo.filterIndexed { index, _ -> index != first }
-                val restLabels = rest
-                    .map { dateFormat.format(Date(it.startedAtMillis)) }
-                    .toTypedArray()
+                val restLabels = labels.filterIndexed { index, _ -> index != first }.toTypedArray()
                 AlertDialog.Builder(this)
                     .setTitle(R.string.compare_pick_second)
                     .setItems(restLabels) { _, second ->
@@ -137,8 +136,9 @@ class SessionsActivity : AppCompatActivity() {
         val body = findViewById<TextView>(R.id.bests_body)
         val exportButton = findViewById<View>(R.id.btn_export)
         val compareButton = findViewById<View>(R.id.btn_compare)
+        val idsWithVideo = store.sessionIdsWithVideo()
         compareButton.visibility =
-            if (sessions.count { store.videoFor(it.id) != null } >= 2) View.VISIBLE
+            if (sessions.count { it.id in idsWithVideo } >= 2) View.VISIBLE
             else View.GONE
         val bests = ProgressStats.compute(sessions, System.currentTimeMillis())
         if (bests == null) {

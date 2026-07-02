@@ -130,10 +130,12 @@ class MainActivity : AppCompatActivity() {
         }
         if (overlay.hasTarget) {
             // tSec is the episode's start (the strike); the ball crosses the
-            // target after that, so any zone recorded since then belongs to
-            // this event. -1 records a miss so accuracy can be computed.
-            val zone =
-                if (lastTargetZoneTimeSec >= tSec - TARGET_MATCH_LEAD_SEC) lastTargetZone else -1
+            // target strictly after that, so only zones recorded since the
+            // strike belong to this event — an earlier crossing was a pass
+            // rolling in, not this shot. -1 records a miss so accuracy can be
+            // computed (a slow ball crossing after the episode already closed
+            // upgrades the miss via attachLatePlacement).
+            val zone = if (lastTargetZoneTimeSec >= tSec) lastTargetZone else -1
             enriched = enriched + ("placementZone" to zone.toDouble())
             lastTargetZoneTimeSec = -1000.0
         }
@@ -169,10 +171,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Shot placement: while a target is set, remember the last grid zone the
-    // ball was seen in so the next ball event can be tagged with it.
+    // ball was seen in so the next ball event can be tagged with it. The
+    // previous ball position lets a fast ball that jumps clean over the target
+    // between frames still register (its path is sampled, not just endpoints).
     private lateinit var targetButton: Button
     private var lastTargetZone = -1
     private var lastTargetZoneTimeSec = -1000.0
+    private var prevBallCenter: PointF? = null
+    private var prevBallTimeSec = -1.0
 
     // Guided setup: a live checklist (phone still / player in frame /
     // calibrated) shown on first launch and from the Setup button.
@@ -186,6 +192,11 @@ class MainActivity : AppCompatActivity() {
     private var colorGood = 0
     private var colorCaution = 0
     private var colorWarn = 0
+
+    // Change keys so the per-frame badge/wizard updates only touch the views
+    // when something actually flipped (onFrame runs ~30×/s on the UI thread).
+    private var lastCalibrationKey = -1
+    private var lastWizardKey = -1
 
     // Impact sound detection, active only while a session is recording.
     // Impacts are stamped with elapsedRealtime; camera frames use the camera
@@ -282,6 +293,10 @@ class MainActivity : AppCompatActivity() {
         targetButton = findViewById(R.id.btn_target)
         targetButton.setOnClickListener { toggleTarget() }
         overlay.onTargetCornersReady = { a, b -> onTargetCornersPlaced(a, b) }
+        overlay.onTargetInvalidated = {
+            targetButton.text = getString(R.string.btn_target)
+            Toast.makeText(this, R.string.target_invalidated, Toast.LENGTH_LONG).show()
+        }
 
         setupPanel = findViewById(R.id.setup_wizard)
         wizardStillRow = findViewById(R.id.wizard_row_still)
@@ -470,10 +485,18 @@ class MainActivity : AppCompatActivity() {
             peakBallKmh = max(peakBallKmh, kmh)
             lastBallSeenSec = result.timestampSec
 
-            overlay.zoneAt(center)?.let { zone ->
+            if (ballTracker.startedNewTrack) prevBallCenter = null
+            ballZoneAt(center, result.timestampSec)?.let { zone ->
                 lastTargetZone = zone
                 lastTargetZoneTimeSec = result.timestampSec
+                // A slow ball can cross the target after its episode already
+                // closed as a miss; give the recorded event its real zone.
+                sessionRecorder?.attachLatePlacement(
+                    result.timestampSec, zone, LATE_PLACEMENT_WINDOW_SEC,
+                )
             }
+            prevBallCenter = center
+            prevBallTimeSec = result.timestampSec
 
             if (ballTracker.startedNewTrack) ballTrail.clear()
             ballTrail.addLast(result.timestampSec to center)
@@ -507,33 +530,60 @@ class MainActivity : AppCompatActivity() {
         )
 
         // --- Status -------------------------------------------------------
-        // Confidence badge: the calibration source decides how much the
-        // numbers can be trusted, so say so — color-coded, with the error band.
-        val (statusText, statusColor) = when {
-            calibration.isManual && calibration.isFromAr ->
-                getString(R.string.calibration_ar) to colorGood
-            calibration.isManual -> getString(R.string.calibration_manual) to colorGood
-            calibration.isCalibrated ->
-                getString(
-                    R.string.calibration_auto, calibration.assumedPlayerHeightMeters,
-                ) to colorCaution
-            else -> getString(R.string.calibration_none) to colorWarn
-        }
-        calibrationStatusText.text = statusText
-        calibrationStatusText.setTextColor(statusColor)
-
+        updateCalibrationBadge()
         updateWizard()
 
         overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box, ballTrail.map { it.second })
     }
 
+    /** 0 = none, 1 = auto (rough), 2 = manual, 3 = AR. */
+    private fun calibrationState(): Int = when {
+        calibration.isManual && calibration.isFromAr -> 3
+        calibration.isManual -> 2
+        calibration.isCalibrated -> 1
+        else -> 0
+    }
+
+    /**
+     * Confidence badge: the calibration source decides how much the numbers
+     * can be trusted, so say so — color-coded, with the error band. Runs every
+     * frame, so the text is only rebuilt when the state actually changes.
+     */
+    private fun updateCalibrationBadge() {
+        val state = calibrationState()
+        val key = state * 1000 +
+            if (state == 1) (calibration.assumedPlayerHeightMeters * 100).toInt() else 0
+        if (key == lastCalibrationKey) return
+        lastCalibrationKey = key
+
+        val (statusText, statusColor) = when (state) {
+            3 -> getString(R.string.calibration_ar) to colorGood
+            2 -> getString(R.string.calibration_manual) to colorGood
+            1 -> getString(
+                R.string.calibration_auto, calibration.assumedPlayerHeightMeters,
+            ) to colorCaution
+            else -> getString(R.string.calibration_none) to colorWarn
+        }
+        calibrationStatusText.text = statusText
+        calibrationStatusText.setTextColor(statusColor)
+    }
+
     // --- Guided setup wizard ---------------------------------------------------
 
-    /** Refreshes the live checklist; cheap no-op while the panel is hidden. */
+    /**
+     * Refreshes the live checklist. Called every frame while the panel is
+     * visible, so the rows are only touched when a check flips.
+     */
     private fun updateWizard() {
         if (setupPanel.visibility != android.view.View.VISIBLE) return
 
         val still = smoothedRotationRate <= SHAKE_THRESHOLD_RAD_S
+        val key = (if (still) 1 else 0) or
+            (if (playerFullyVisible) 2 else 0) or
+            (calibrationState() shl 2)
+        if (key == lastWizardKey) return
+        lastWizardKey = key
+
         wizardStillRow.text =
             getString(if (still) R.string.wizard_still_ok else R.string.wizard_still_bad)
         wizardStillRow.setTextColor(if (still) colorGood else colorWarn)
@@ -543,8 +593,8 @@ class MainActivity : AppCompatActivity() {
         )
         wizardPlayerRow.setTextColor(if (playerFullyVisible) colorGood else colorWarn)
 
-        when {
-            calibration.isManual -> {
+        when (calibrationState()) {
+            3, 2 -> {
                 wizardCalibrationRow.text = getString(
                     R.string.wizard_calibration_ok,
                     getString(
@@ -554,7 +604,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 wizardCalibrationRow.setTextColor(colorGood)
             }
-            calibration.isCalibrated -> {
+            1 -> {
                 wizardCalibrationRow.text = getString(R.string.wizard_calibration_auto)
                 wizardCalibrationRow.setTextColor(colorCaution)
             }
@@ -566,6 +616,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Shot placement target -------------------------------------------------
+
+    /**
+     * Zone for the ball this frame. A fast shot can travel farther per frame
+     * than the target is wide, so when the endpoints miss, points along the
+     * path from the previous frame are sampled too.
+     */
+    private fun ballZoneAt(center: PointF, tSec: Double): Int? {
+        overlay.zoneAt(center)?.let { return it }
+        val prev = prevBallCenter ?: return null
+        if (tSec - prevBallTimeSec > MAX_BALL_PATH_GAP_SEC) return null
+        for (fraction in PATH_SAMPLE_FRACTIONS) {
+            val point = PointF(
+                prev.x + (center.x - prev.x) * fraction,
+                prev.y + (center.y - prev.y) * fraction,
+            )
+            overlay.zoneAt(point)?.let { return it }
+        }
+        return null
+    }
 
     private fun toggleTarget() {
         when {
@@ -719,6 +788,7 @@ class MainActivity : AppCompatActivity() {
         if (prefs.getBoolean(PREF_ONBOARDED, false)) return
         prefs.edit().putBoolean(PREF_ONBOARDED, true).apply()
         setupPanel.visibility = android.view.View.VISIBLE
+        updateWizard() // real state and colors, not the layout's placeholders
     }
 
     // --- Drill mode ----------------------------------------------------------
@@ -752,15 +822,22 @@ class MainActivity : AppCompatActivity() {
             addView(targetInput)
             addView(challengeInput)
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.drill_dialog_title)
             .setView(container)
-            .setPositiveButton(R.string.drill_start) { _, _ ->
+            .setPositiveButton(R.string.drill_start, null) // listener set below
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        // The click listener is attached after show() so an invalid challenge
+        // code keeps the dialog (and everything typed) open for correction —
+        // a listener passed to setPositiveButton always dismisses.
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val challengeText = challengeInput.text.toString()
                 val rival = ChallengeCodec.decode(challengeText)
                 if (challengeText.isNotBlank() && rival == null) {
                     Toast.makeText(this, R.string.challenge_invalid, Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 drill = if (rival != null) {
                     // A challenge fixes the rules: same attempts, same target.
@@ -781,9 +858,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 drillButton.text = getString(R.string.btn_drill_stop)
                 updateDrillStatus()
+                dialog.dismiss()
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        }
+        dialog.show()
     }
 
     private fun onDrillAttempt(peakBallKmh: Double) {
@@ -817,16 +895,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** More hits wins; equal hits fall back to the faster best attempt. */
-    private fun challengeVerdict(drill: DrillTracker, rival: ChallengeResult): String = when {
-        drill.hitCount > rival.hitCount ->
-            getString(R.string.challenge_result_win, rival.hitCount, rival.attempts, rival.bestKmh)
-        drill.hitCount < rival.hitCount ->
-            getString(R.string.challenge_result_lose, rival.hitCount, rival.attempts, rival.bestKmh)
-        drill.bestKmh > rival.bestKmh ->
-            getString(R.string.challenge_result_win, rival.hitCount, rival.attempts, rival.bestKmh)
-        drill.bestKmh < rival.bestKmh ->
-            getString(R.string.challenge_result_lose, rival.hitCount, rival.attempts, rival.bestKmh)
-        else -> getString(R.string.challenge_result_tie, rival.hitCount, rival.bestKmh)
+    private fun challengeVerdict(drill: DrillTracker, rival: ChallengeResult): String {
+        val comparison = drill.hitCount.compareTo(rival.hitCount)
+            .let { if (it != 0) it else drill.bestKmh.compareTo(rival.bestKmh) }
+        return when {
+            comparison > 0 -> getString(
+                R.string.challenge_result_win, rival.hitCount, rival.attempts, rival.bestKmh,
+            )
+            comparison < 0 -> getString(
+                R.string.challenge_result_lose, rival.hitCount, rival.attempts, rival.bestKmh,
+            )
+            else -> getString(R.string.challenge_result_tie, rival.hitCount, rival.bestKmh)
+        }
     }
 
     /** Sends this drill's scorecard as a paste-able challenge code. */
@@ -858,7 +938,7 @@ class MainActivity : AppCompatActivity() {
         drillStatusText.text = if (rival != null) {
             getString(
                 R.string.drill_vs_status_format,
-                activeDrill.attemptCount, activeDrill.targetCount,
+                activeDrill.attemptCount, activeDrill.targetCount, activeDrill.bestKmh,
                 activeDrill.hitCount, rival.hitCount,
             )
         } else {
@@ -1036,8 +1116,11 @@ class MainActivity : AppCompatActivity() {
         const val SHAKE_THRESHOLD_RAD_S = 0.12
         const val PREF_HEIGHT_M = "player_height_m"
         const val PREF_ONBOARDED = "onboarded"
-        /** How far before the episode start a recorded zone still counts. */
-        const val TARGET_MATCH_LEAD_SEC = 0.3
         const val MIN_TARGET_SIZE_PX = 40f
+        /** How long after the strike a target crossing can upgrade a recorded miss. */
+        const val LATE_PLACEMENT_WINDOW_SEC = 4.0
+        /** Longest frame gap over which the ball's path is still interpolated. */
+        const val MAX_BALL_PATH_GAP_SEC = 0.2
+        val PATH_SAMPLE_FRACTIONS = floatArrayOf(0.25f, 0.5f, 0.75f)
     }
 }

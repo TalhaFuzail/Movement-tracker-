@@ -178,7 +178,7 @@
     <string name="challenge_result_win">You beat your friend — they hit %1$d of %2$d (best %3$.1f km/h). 🏆</string>
     <string name="challenge_result_lose">Your friend wins — they hit %1$d of %2$d (best %3$.1f km/h). Rematch?</string>
     <string name="challenge_result_tie">Dead heat — %1$d hits each and a matching %2$.1f km/h best.</string>
-    <string name="drill_vs_status_format">Drill %1$d/%2$d · you %3$d hits · friend %4$d</string>
+    <string name="drill_vs_status_format">Drill %1$d/%2$d · best %3$.0f km/h · you %4$d hits · friend %5$d</string>
 
     <!-- Shot placement target -->
     <string name="btn_target">Target</string>
@@ -186,6 +186,7 @@
     <string name="target_instructions">Tap the two opposite corners of the goal (or any target area).</string>
     <string name="target_set">Target set — shot placement will be recorded.</string>
     <string name="target_cleared">Target cleared.</string>
+    <string name="target_invalidated">Target cleared — the view changed size. Set it again.</string>
     <string name="placement_header">Shot placement</string>
     <string name="placement_accuracy">%1$d of %2$d attempts on target (%3$.0f%%)</string>
     <string name="event_zone_suffix">" · %1$s"</string>

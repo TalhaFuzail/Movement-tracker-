@@ -11,11 +11,19 @@ import kotlin.math.sqrt
  */
 object SuggestionEngine {
 
-    fun suggestionsFor(session: SessionRecord): List<String> {
+    /**
+     * [zoneNames] labels the nine placement zones (row-major from top-left);
+     * pass the UI's zone names (R.array.placement_zones) so suggestions and
+     * the placement grid never describe the same zone differently.
+     */
+    fun suggestionsFor(
+        session: SessionRecord,
+        zoneNames: List<String> = DEFAULT_ZONE_NAMES,
+    ): List<String> {
         val out = mutableListOf<String>()
         out += soccerSuggestions(session.events.filter { it.type == ActivityType.SOCCER_SHOT })
         out += bowlingSuggestions(session.events.filter { it.type == ActivityType.CRICKET_BOWL })
-        out += placementSuggestions(session)
+        out += placementSuggestions(session, zoneNames)
         out += sprintSuggestions(session)
         return out
     }
@@ -177,14 +185,17 @@ object SuggestionEngine {
 
     // --- Shot placement -------------------------------------------------------
 
-    /** Zone names match the 3×3 target grid, row-major from top-left. */
-    private val zoneNames = listOf(
+    /** Fallback zone names when no localized set is passed in. */
+    private val DEFAULT_ZONE_NAMES = listOf(
         "top left", "top centre", "top right",
         "middle left", "centre", "middle right",
         "bottom left", "bottom centre", "bottom right",
     )
 
-    private fun placementSuggestions(session: SessionRecord): List<String> {
+    private fun placementSuggestions(
+        session: SessionRecord,
+        zoneNames: List<String>,
+    ): List<String> {
         val placed = session.events.mapNotNull { it.extras["placementZone"]?.toInt() }
         if (placed.size < 3) return emptyList()
         val out = mutableListOf<String>()

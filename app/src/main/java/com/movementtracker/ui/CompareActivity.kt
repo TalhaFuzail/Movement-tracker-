@@ -36,8 +36,10 @@ class CompareActivity : AppCompatActivity() {
         val store = SessionStore(this)
         val idA = intent.getStringExtra(EXTRA_SESSION_A)
         val idB = intent.getStringExtra(EXTRA_SESSION_B)
-        val sessionA = idA?.let { store.load(it) }
-        val sessionB = idB?.let { store.load(it) }
+        // One disk pass for both records — load(id) re-reads every session file.
+        val all = store.listAll()
+        val sessionA = all.firstOrNull { it.id == idA }
+        val sessionB = all.firstOrNull { it.id == idB }
         val fileA = idA?.let { store.videoFor(it) }
         val fileB = idB?.let { store.videoFor(it) }
         if (sessionA == null || sessionB == null || fileA == null || fileB == null) {
@@ -74,11 +76,15 @@ class CompareActivity : AppCompatActivity() {
         ).format(Date(session.startedAtMillis))
 
         val video = findViewById<VideoView>(videoId)
+        // Whether the user already cued an event; the prepared-listener's
+        // show-first-frame seek must not overwrite a cue tapped while the
+        // video was still preparing.
+        var cued = false
         video.setVideoPath(file.absolutePath)
         video.setOnPreparedListener { player ->
             player.setVolume(0f, 0f)
             // Show the first frame instead of a black rectangle.
-            video.seekTo(1)
+            if (!cued) video.seekTo(1)
         }
 
         val row = findViewById<LinearLayout>(eventsId)
@@ -88,22 +94,13 @@ class CompareActivity : AppCompatActivity() {
             return video
         }
         events.forEach { e ->
-            val time = String.format(
-                Locale.US, "%d:%02d", (e.tOffsetSec / 60).toInt(), (e.tOffsetSec % 60).toInt(),
-            )
-            val label = when (e.type) {
-                ActivityType.SOCCER_SHOT ->
-                    getString(R.string.replay_event_shot, time, e.peakBallKmh)
-                ActivityType.CRICKET_BOWL ->
-                    getString(R.string.replay_event_bowl, time, e.peakBallKmh)
-                ActivityType.JUMP ->
-                    getString(R.string.replay_event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
-                else -> getString(R.string.replay_event_ball, time, e.peakBallKmh)
-            }
             row.addView(Button(this).apply {
-                text = label
+                text = EventFormat.cueLabel(this@CompareActivity, e)
                 setOnClickListener {
-                    video.seekTo(max(0.0, (e.tOffsetSec - EVENT_LEAD_IN_SEC) * 1000).toInt())
+                    cued = true
+                    video.seekTo(
+                        max(0.0, (e.tOffsetSec - EventFormat.EVENT_LEAD_IN_SEC) * 1000).toInt()
+                    )
                     video.pause()
                 }
             })
@@ -121,6 +118,5 @@ class CompareActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SESSION_A = "session_a"
         const val EXTRA_SESSION_B = "session_b"
-        private const val EVENT_LEAD_IN_SEC = 2.0
     }
 }

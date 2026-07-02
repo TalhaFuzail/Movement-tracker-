@@ -100,6 +100,11 @@ class ActivityClassifier(
 
     private fun classify(eventTSec: Double, peakBallKmh: Double, approachKmh: Double) {
         val window = history.filter { it.tSec in (eventTSec - LOOKBACK_SECONDS)..(eventTSec + 0.15) }
+        // Classification runs at episode end, so frames well past the strike
+        // are available — the follow-through needs them (it peaks 0.3–0.5 s
+        // after contact, beyond the classification window).
+        val postWindow =
+            history.filter { it.tSec in eventTSec..(eventTSec + FOLLOW_THROUGH_SECONDS) }
 
         val extras = mutableMapOf("approachKmh" to approachKmh)
         var type = ActivityType.BALL_EVENT
@@ -111,7 +116,7 @@ class ActivityClassifier(
                 shot != null && (bowl == null || shot.strength >= bowl.strength) -> {
                     type = ActivityType.SOCCER_SHOT
                     extras["footKmh"] = shot.limbSpeedKmh
-                    extras.putAll(shotTechnique(window))
+                    extras.putAll(shotTechnique(window, postWindow))
                 }
                 bowl != null -> {
                     type = ActivityType.CRICKET_BOWL
@@ -129,7 +134,10 @@ class ActivityClassifier(
     // peaked in speed), so coaching tips can quote the athlete's own numbers.
 
     /** Knee angle at contact and how high the kicking foot rises afterwards. */
-    private fun shotTechnique(window: List<Snapshot>): Map<String, Double> {
+    private fun shotTechnique(
+        window: List<Snapshot>,
+        postWindow: List<Snapshot>,
+    ): Map<String, Double> {
         val (leftKmh, leftIdx) = peakLimbSpeed(window) { it.leftAnkle }
         val (rightKmh, rightIdx) = peakLimbSpeed(window) { it.rightAnkle }
         val leftLeg = leftKmh >= rightKmh
@@ -145,17 +153,22 @@ class ActivityClassifier(
         )?.let { out["kneeAngleDeg"] = it }
 
         // Follow-through: the highest the kicking ankle rises above hip level
-        // baseline after contact, as a percentage of body height.
+        // after contact, as a percentage of body height.
         var highest = 0.0
-        for (i in contactIdx until window.size) {
-            val s = window[i]
+        var sawPostFrame = false
+        for (s in postWindow) {
             val ankle = (if (leftLeg) s.leftAnkle else s.rightAnkle) ?: continue
             val hip = (if (leftLeg) s.leftHip else s.rightHip) ?: continue
             if (s.personHeightPx <= 0f) continue
+            sawPostFrame = true
             // Screen y grows downward: hip.y - ankle.y > 0 means the foot is up.
             highest = max(highest, (hip.y - ankle.y).toDouble() / s.personHeightPx)
         }
-        if (highest > 0) out["followThroughPct"] = (highest * 100).coerceAtMost(150.0)
+        // Only report when post-contact frames existed — otherwise a missing
+        // measurement would masquerade as a zero follow-through.
+        if (sawPostFrame && highest > 0) {
+            out["followThroughPct"] = (highest * 100).coerceAtMost(150.0)
+        }
         return out
     }
 
@@ -282,8 +295,15 @@ class ActivityClassifier(
     }
 
     private companion object {
-        const val HISTORY_SECONDS = 1.5
+        /**
+         * Classification runs when an episode *ends*, up to MAX_EPISODE_SEC
+         * (5 s) after the strike — history must still hold the strike frames
+         * then, or long episodes lose their window and fall back to BALL_EVENT.
+         */
+        const val HISTORY_SECONDS = 6.0
         const val LOOKBACK_SECONDS = 0.7
+        /** How long after contact the follow-through is measured. */
+        const val FOLLOW_THROUGH_SECONDS = 0.6
         /** A limb slower than this isn't a deliberate strike/bowl. */
         const val MIN_SWING_KMH = 10.0
     }
