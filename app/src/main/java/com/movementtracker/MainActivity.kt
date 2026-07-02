@@ -23,13 +23,12 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.pose.PoseLandmark
 import android.content.Intent
+import com.movementtracker.analysis.ActivityClassifier
 import com.movementtracker.analysis.BallTracker
 import com.movementtracker.analysis.CalibrationManager
 import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.SpeedCalculator
-import com.movementtracker.session.ActivityType
-import com.movementtracker.session.BallEpisodeDetector
 import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
 import com.movementtracker.ui.OverlayView
@@ -65,14 +64,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sessionStore: SessionStore
     private lateinit var sessionButton: Button
     private var sessionRecorder: SessionRecorder? = null
-    private val ballEpisodes = BallEpisodeDetector { tSec, peakKmh, approachKmh ->
-        sessionRecorder?.addBallEvent(
-            tSec = tSec,
-            type = ActivityType.BALL_EVENT,
-            peakBallKmh = peakKmh,
-            playerKmh = approachKmh,
-            extras = mapOf("approachKmh" to approachKmh),
-        )
+    private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
+        sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
     }
 
     private val requestCameraPermission =
@@ -214,7 +207,15 @@ class MainActivity : AppCompatActivity() {
             ballSpeedText.text = getString(R.string.ball_speed_none)
         }
 
-        ballEpisodes.update(result.timestampSec, frameBallKmh, playerSpeed.kmPerHour)
+        val ballViewCenter = viewBallBox?.let { PointF(it.centerX(), it.centerY()) }
+        activityClassifier.update(
+            tSec = result.timestampSec,
+            landmarks = viewLandmarks,
+            ballCenter = ballViewCenter,
+            ballKmh = frameBallKmh,
+            playerKmh = playerSpeed.kmPerHour,
+            metersPerPixel = metersPerPixel,
+        )
 
         // --- Status -------------------------------------------------------
         calibrationStatusText.text = when {
