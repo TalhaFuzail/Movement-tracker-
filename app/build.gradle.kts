@@ -45,4 +45,7 @@ dependencies {
     // On-device ML: human pose landmarks + generic object detection with tracking
     implementation("com.google.mlkit:pose-detection:18.0.0-beta5")
     implementation("com.google.mlkit:object-detection:17.0.1")
+
+    // AR-based scale calibration (optional at runtime)
+    implementation("com.google.ar:core:1.42.0")
 }

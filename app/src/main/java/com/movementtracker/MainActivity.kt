@@ -29,6 +29,7 @@ import com.movementtracker.analysis.CalibrationManager
 import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.SpeedCalculator
+import com.movementtracker.ar.ArCalibrateActivity
 import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
 import com.movementtracker.ui.OverlayView
@@ -69,6 +70,21 @@ class MainActivity : AppCompatActivity() {
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
     }
 
+    /** AR measurement waiting to be converted once the analysis image size is known. */
+    private var pendingArCalibration: DoubleArray? = null
+
+    private val arCalibrate =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            val data = res.data
+            if (res.resultCode == RESULT_OK && data != null) {
+                pendingArCalibration = doubleArrayOf(
+                    data.getDoubleExtra(ArCalibrateActivity.EXTRA_DISTANCE_M, 0.0),
+                    data.getDoubleExtra(ArCalibrateActivity.EXTRA_FOCAL_PX, 0.0),
+                    data.getDoubleExtra(ArCalibrateActivity.EXTRA_IMAGE_LONG_PX, 0.0),
+                )
+            }
+        }
+
     private val requestCameraPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
@@ -104,6 +120,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btn_slowmo).setOnClickListener {
             startActivity(Intent(this, SlowMoActivity::class.java))
+        }
+        findViewById<Button>(R.id.btn_ar_calibrate).setOnClickListener {
+            arCalibrate.launch(Intent(this, ArCalibrateActivity::class.java))
         }
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
@@ -161,6 +180,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onFrame(result: FrameResult) {
         overlay.setSourceImageSize(result.imageWidth, result.imageHeight)
+        applyPendingArCalibration(result)
 
         // --- Player -------------------------------------------------------
         val viewLandmarks = result.landmarks.mapValues { (_, p) -> overlay.imageToView(p) }
@@ -223,12 +243,41 @@ class MainActivity : AppCompatActivity() {
 
         // --- Status -------------------------------------------------------
         calibrationStatusText.text = when {
+            calibration.isManual && calibration.isFromAr -> getString(R.string.calibration_ar)
             calibration.isManual -> getString(R.string.calibration_manual)
             calibration.isCalibrated -> getString(R.string.calibration_auto)
             else -> getString(R.string.calibration_none)
         }
 
         overlay.update(viewLandmarks, viewBallBox)
+    }
+
+    /**
+     * Converts an AR distance measurement into a view-space metres-per-pixel
+     * scale. At depth d the camera sees d/fx metres per sensor pixel; scaling
+     * by the ratio of sensor to analysis resolution (along the long axis,
+     * whose field of view both streams share) and then by the preview's
+     * image-to-view zoom gives the scale our speed math runs in.
+     */
+    private fun applyPendingArCalibration(result: FrameResult) {
+        val (distanceM, focalPx, arLongPx) = pendingArCalibration ?: return
+        if (distanceM <= 0 || focalPx <= 0 || arLongPx <= 0) {
+            pendingArCalibration = null
+            return
+        }
+        val analysisLongPx = max(result.imageWidth, result.imageHeight).toDouble()
+        val metersPerImagePixel = distanceM * arLongPx / (focalPx * analysisLongPx)
+
+        val origin = overlay.imageToView(PointF(0f, 0f))
+        val unit = overlay.imageToView(PointF(1f, 0f))
+        val viewScale = (unit.x - origin.x).toDouble()
+        if (viewScale <= 0) return  // overlay not laid out yet; retry next frame
+
+        calibration.setManualMetersPerPixel(metersPerImagePixel / viewScale, fromAr = true)
+        playerSpeed.reset()
+        ballSpeed.reset()
+        pendingArCalibration = null
+        Toast.makeText(this, R.string.ar_calibration_applied, Toast.LENGTH_SHORT).show()
     }
 
     // --- Session recording ---------------------------------------------------

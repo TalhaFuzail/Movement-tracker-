@@ -3,6 +3,9 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" />
+    <uses-feature
+        android:name="android.hardware.camera.ar"
+        android:required="false" />
 
     <application
         android:label="@string/app_name"
@@ -33,5 +36,15 @@
             android:name=".ui.SlowMoActivity"
             android:exported="false"
             android:label="@string/title_slowmo" />
+
+        <activity
+            android:name=".ar.ArCalibrateActivity"
+            android:exported="false"
+            android:label="@string/title_ar_calibrate"
+            android:screenOrientation="locked" />
+
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="optional" />
     </application>
 </manifest>

@@ -67,4 +67,17 @@
     <string name="slowmo_top_ball">Top ball speed: %1$.1f km/h</string>
     <string name="slowmo_top_player">Top player speed: %1$.1f km/h</string>
     <string name="slowmo_saved_note">Saved to Sessions with full stats and suggestions.</string>
+
+    <!-- AR calibration -->
+    <string name="btn_ar_calibrate">AR scale</string>
+    <string name="title_ar_calibrate">AR calibration</string>
+    <string name="ar_instructions">Point the crosshair at the ground where the player will be. When the distance locks, tap Use.</string>
+    <string name="ar_crosshair">+</string>
+    <string name="ar_searching">Looking for the ground…</string>
+    <string name="ar_distance_format">%1$.2f m to surface</string>
+    <string name="btn_ar_use">Use this distance</string>
+    <string name="ar_unavailable">ARCore is not available on this device.</string>
+    <string name="ar_camera_busy">Camera unavailable for AR right now.</string>
+    <string name="ar_calibration_applied">AR calibration applied.</string>
+    <string name="calibration_ar">Calibration: AR ✓</string>
 </resources>
