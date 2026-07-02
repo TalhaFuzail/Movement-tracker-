@@ -34,6 +34,14 @@ class SessionDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.detail_stats).text = buildStats(session)
         findViewById<TextView>(R.id.detail_events).text = buildEvents(session)
 
+        if (session.samples.size >= 2) {
+            findViewById<TextView>(R.id.detail_chart_header).visibility = View.VISIBLE
+            findViewById<SpeedChartView>(R.id.detail_chart).apply {
+                visibility = View.VISIBLE
+                setData(session.samples, session.events, session.durationSec)
+            }
+        }
+
         val suggestions = SuggestionEngine.suggestionsFor(session)
         if (suggestions.isNotEmpty()) {
             findViewById<TextView>(R.id.detail_suggestions_header).visibility = View.VISIBLE

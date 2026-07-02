@@ -45,6 +45,8 @@
     <string name="stat_sprints">Sprints: %1$d</string>
     <string name="stat_ball_events">Ball events: %1$d</string>
 
+    <string name="chart_header">Speed timeline</string>
+
     <string name="events_header">Events</string>
     <string name="events_none">No events recorded.</string>
     <string name="event_sprint">%1$s  Sprint — peak %2$.1f km/h for %3$.1f s</string>

@@ -25,6 +25,25 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/detail_chart_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/chart_header"
+            android:textAllCaps="true"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <com.movementtracker.ui.SpeedChartView
+            android:id="@+id/detail_chart"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/detail_events_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
