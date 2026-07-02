@@ -2,6 +2,10 @@ package com.movementtracker
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
@@ -122,6 +126,27 @@ class MainActivity : AppCompatActivity() {
         announceJump(heightM)
     }
 
+    // Camera shake: the speed math assumes a static phone, so warn when the
+    // gyroscope says otherwise instead of silently producing wrong numbers.
+    private lateinit var shakeWarningText: TextView
+    private var smoothedRotationRate = 0.0
+    private val shakeListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            val magnitude = hypot(
+                hypot(event.values[0].toDouble(), event.values[1].toDouble()),
+                event.values[2].toDouble(),
+            )
+            smoothedRotationRate = smoothedRotationRate * 0.9 + magnitude * 0.1
+            val moving = smoothedRotationRate > SHAKE_THRESHOLD_RAD_S
+            if (moving != (shakeWarningText.visibility == android.view.View.VISIBLE)) {
+                shakeWarningText.visibility =
+                    if (moving) android.view.View.VISIBLE else android.view.View.GONE
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
+
     // Impact sound detection, active only while a session is recording.
     @Volatile
     private var lastImpactSoundSec = -1000.0
@@ -211,6 +236,8 @@ class MainActivity : AppCompatActivity() {
             getString(if (voiceEnabled) R.string.btn_voice_on else R.string.btn_voice_off)
         voiceButton.setOnClickListener { toggleVoice() }
         if (voiceEnabled) initTts()
+
+        shakeWarningText = findViewById(R.id.shake_warning)
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
 
@@ -653,6 +680,21 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    override fun onResume() {
+        super.onResume()
+        val sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { gyro ->
+            sensorManager.registerListener(
+                shakeListener, gyro, SensorManager.SENSOR_DELAY_UI,
+            )
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        (getSystemService(SENSOR_SERVICE) as SensorManager).unregisterListener(shakeListener)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         frameAnalyzer?.shutdown()
@@ -675,5 +717,6 @@ class MainActivity : AppCompatActivity() {
         const val LAUNCH_MEASURE_SEC = 0.15
         const val MIN_LAUNCH_TRAVEL_PX = 24.0
         const val LAUNCH_MATCH_WINDOW_SEC = 4.0
+        const val SHAKE_THRESHOLD_RAD_S = 0.12
     }
 }
