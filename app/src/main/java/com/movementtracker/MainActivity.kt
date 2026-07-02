@@ -19,6 +19,14 @@ import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.pose.PoseLandmark
@@ -66,6 +74,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sessionStore: SessionStore
     private lateinit var sessionButton: Button
     private var sessionRecorder: SessionRecorder? = null
+
+    // Replay video: recorded only while a session runs, kept only if saved.
+    private var videoCapture: VideoCapture<Recorder>? = null
+    private var activeRecording: Recording? = null
+    private var pendingVideoFileName: String? = null
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
     }
@@ -168,13 +181,32 @@ class MainActivity : AppCompatActivity() {
             frameAnalyzer = analyzer
             analysis.setAnalyzer(analysisExecutor, analyzer)
 
-            provider.unbindAll()
-            provider.bindToLifecycle(
-                this,
-                CameraSelector.DEFAULT_BACK_CAMERA,
-                preview,
-                analysis,
+            val video = VideoCapture.withOutput(
+                Recorder.Builder()
+                    .setQualitySelector(
+                        QualitySelector.from(
+                            Quality.HD,
+                            FallbackStrategy.higherQualityOrLowerThan(Quality.HD),
+                        )
+                    )
+                    .build()
             )
+
+            provider.unbindAll()
+            // Not every device can run preview + analysis + video together;
+            // replay recording is dropped first, live tracking never is.
+            try {
+                provider.bindToLifecycle(
+                    this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis, video,
+                )
+                videoCapture = video
+            } catch (e: IllegalArgumentException) {
+                videoCapture = null
+                provider.unbindAll()
+                provider.bindToLifecycle(
+                    this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis,
+                )
+            }
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -287,18 +319,41 @@ class MainActivity : AppCompatActivity() {
         if (recorder == null) {
             sessionRecorder = SessionRecorder(System.currentTimeMillis())
             sessionButton.text = getString(R.string.btn_session_stop)
+            startReplayRecording()
             Toast.makeText(this, R.string.session_started, Toast.LENGTH_SHORT).show()
         } else {
             sessionRecorder = null
             sessionButton.text = getString(R.string.btn_session_start)
             if (recorder.isEmpty) {
+                pendingVideoFileName = null
                 Toast.makeText(this, R.string.session_discarded_empty, Toast.LENGTH_SHORT).show()
             } else {
                 val record = recorder.finish()
+                pendingVideoFileName = "${record.startedAtMillis}-${record.id}.mp4"
                 Thread { sessionStore.save(record) }.start()
                 Toast.makeText(this, R.string.session_saved, Toast.LENGTH_SHORT).show()
             }
+            activeRecording?.stop()
+            activeRecording = null
         }
+    }
+
+    private fun startReplayRecording() {
+        val capture = videoCapture ?: return
+        val temp = sessionStore.tempVideoFile().also { it.delete() }
+        activeRecording = capture.output
+            .prepareRecording(this, FileOutputOptions.Builder(temp).build())
+            .start(ContextCompat.getMainExecutor(this)) { event ->
+                if (event is VideoRecordEvent.Finalize) {
+                    val name = pendingVideoFileName
+                    pendingVideoFileName = null
+                    if (!event.hasError() && name != null) {
+                        Thread { sessionStore.finalizeVideo(name) }.start()
+                    } else {
+                        sessionStore.tempVideoFile().delete()
+                    }
+                }
+            }
     }
 
     // --- Manual calibration ------------------------------------------------

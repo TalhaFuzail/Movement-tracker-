@@ -33,6 +33,11 @@
             android:label="@string/title_session_detail" />
 
         <activity
+            android:name=".ui.ReplayActivity"
+            android:exported="false"
+            android:label="@string/title_replay" />
+
+        <activity
             android:name=".ui.SlowMoActivity"
             android:exported="false"
             android:label="@string/title_slowmo" />

@@ -13,6 +13,7 @@ import java.io.File
 class SessionStore(context: Context) {
 
     private val dir = File(context.filesDir, "sessions").apply { mkdirs() }
+    private val videoDir = File(context.filesDir, "videos").apply { mkdirs() }
 
     fun save(record: SessionRecord) {
         val file = File(dir, "${record.startedAtMillis}-${record.id}.json")
@@ -35,5 +36,23 @@ class SessionStore(context: Context) {
         (dir.listFiles() ?: emptyArray())
             .filter { it.name.endsWith("-$id.json") }
             .forEach { it.delete() }
+        videoFor(id)?.delete()
     }
+
+    // --- Session replay videos ------------------------------------------------
+    // The camera records into one temp file while a session runs; when the
+    // session is saved the temp file is renamed to `<startedAtMillis>-<id>.mp4`
+    // so it pairs with the session's JSON by naming convention.
+
+    fun tempVideoFile(): File = File(videoDir, "recording.tmp.mp4")
+
+    /** Promotes the in-progress recording to the saved session's replay video. */
+    fun finalizeVideo(fileName: String) {
+        val temp = tempVideoFile()
+        if (temp.exists()) temp.renameTo(File(videoDir, fileName))
+    }
+
+    fun videoFor(id: String): File? =
+        (videoDir.listFiles() ?: emptyArray())
+            .firstOrNull { it.name.endsWith("-$id.mp4") }
 }
