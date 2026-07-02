@@ -38,6 +38,15 @@
     <string name="session_delete_title">Delete this session?</string>
     <string name="session_delete_confirm">Delete</string>
 
+    <!-- Personal bests / progress -->
+    <string name="bests_header">Personal bests</string>
+    <string name="best_top_speed">Fastest sprint: %1$.1f km/h</string>
+    <string name="best_shot">Hardest shot: %1$.1f km/h</string>
+    <string name="best_bowl">Fastest bowl: %1$.1f km/h</string>
+    <string name="bests_totals">%1$d sessions · %2$.1f km covered</string>
+    <string name="trend_up">Top speed up %1$.0f%% vs last month</string>
+    <string name="trend_down">Top speed down %1$.0f%% vs last month</string>
+
     <string name="stat_duration">Duration: %1$d min %2$d s</string>
     <string name="stat_top_speed">Top speed: %1$.1f km/h</string>
     <string name="stat_avg_speed">Avg speed (moving): %1$.1f km/h</string>
