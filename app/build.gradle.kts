@@ -47,6 +47,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$camerax")
     implementation("androidx.camera:camera-lifecycle:$camerax")
     implementation("androidx.camera:camera-view:$camerax")
+    implementation("androidx.camera:camera-video:$camerax")
 
     // On-device ML: human pose landmarks + object detection with tracking,
     // classified by a bundled TFLite labeler that knows sports-ball classes

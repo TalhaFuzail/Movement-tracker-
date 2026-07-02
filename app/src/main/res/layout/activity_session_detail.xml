@@ -16,6 +16,14 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
+        <Button
+            android:id="@+id/btn_replay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/btn_replay"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/detail_stats"
             android:layout_width="wrap_content"

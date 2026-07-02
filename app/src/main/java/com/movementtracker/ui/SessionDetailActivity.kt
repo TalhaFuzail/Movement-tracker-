@@ -1,5 +1,6 @@
 package com.movementtracker.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -22,10 +23,23 @@ class SessionDetailActivity : AppCompatActivity() {
         setContentView(R.layout.activity_session_detail)
 
         val id = intent.getStringExtra(EXTRA_SESSION_ID)
-        val session = id?.let { SessionStore(this).load(it) }
+        val store = SessionStore(this)
+        val session = id?.let { store.load(it) }
         if (session == null) {
             finish()
             return
+        }
+
+        if (store.videoFor(session.id) != null) {
+            findViewById<View>(R.id.btn_replay).apply {
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    startActivity(
+                        Intent(this@SessionDetailActivity, ReplayActivity::class.java)
+                            .putExtra(EXTRA_SESSION_ID, session.id)
+                    )
+                }
+            }
         }
 
         findViewById<TextView>(R.id.detail_title).text =

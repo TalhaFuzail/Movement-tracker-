@@ -47,6 +47,13 @@
 
     <string name="chart_header">Speed timeline</string>
 
+    <!-- Replay -->
+    <string name="title_replay">Replay</string>
+    <string name="btn_replay">Watch replay</string>
+    <string name="replay_event_shot">%1$s Shot %2$.0f km/h</string>
+    <string name="replay_event_bowl">%1$s Bowl %2$.0f km/h</string>
+    <string name="replay_event_ball">%1$s Ball %2$.0f km/h</string>
+
     <string name="events_header">Events</string>
     <string name="events_none">No events recorded.</string>
     <string name="event_sprint">%1$s  Sprint — peak %2$.1f km/h for %3$.1f s</string>
