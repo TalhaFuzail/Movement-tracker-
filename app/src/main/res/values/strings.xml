@@ -15,6 +15,8 @@
     <string name="launch_angle_format">Launch angle: %1$.0f°</string>
     <string name="event_launch_suffix">" · launch %1$.0f°"</string>
 
+    <string name="shake_warning">Phone is moving — speeds unreliable. Use a tripod or prop it still.</string>
+
     <string name="btn_calibrate">Calibrate</string>
     <string name="btn_reset_peak">Reset peak</string>
 
