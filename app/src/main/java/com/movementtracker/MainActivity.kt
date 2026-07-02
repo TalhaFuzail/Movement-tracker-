@@ -2,6 +2,8 @@ package com.movementtracker
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.graphics.PointF
 import android.graphics.RectF
 import android.os.Bundle
@@ -38,6 +40,7 @@ import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
+import com.movementtracker.session.DrillTracker
 import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
 import com.movementtracker.ui.OverlayView
@@ -81,7 +84,14 @@ class MainActivity : AppCompatActivity() {
     private var pendingVideoFileName: String? = null
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, extras)
+        onDrillAttempt(peakBallKmh)
     }
+
+    // Drill mode: N attempts against a target ball speed, with audio feedback.
+    private lateinit var drillStatusText: TextView
+    private lateinit var drillButton: Button
+    private var drill: DrillTracker? = null
+    private var toneGenerator: ToneGenerator? = null
 
     /** AR measurement waiting to be converted once the analysis image size is known. */
     private var pendingArCalibration: DoubleArray? = null
@@ -137,6 +147,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_ar_calibrate).setOnClickListener {
             arCalibrate.launch(Intent(this, ArCalibrateActivity::class.java))
         }
+        drillStatusText = findViewById(R.id.drill_status)
+        drillButton = findViewById(R.id.btn_drill)
+        drillButton.setOnClickListener { toggleDrill() }
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
 
@@ -356,6 +369,87 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
+    // --- Drill mode ----------------------------------------------------------
+
+    private fun toggleDrill() {
+        if (drill != null) {
+            drill = null
+            drillStatusText.visibility = android.view.View.GONE
+            drillButton.text = getString(R.string.btn_drill)
+            Toast.makeText(this, R.string.drill_cancelled, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val countInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.drill_count_hint)
+        }
+        val targetInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            hint = getString(R.string.drill_target_hint)
+        }
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+            addView(countInput)
+            addView(targetInput)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.drill_dialog_title)
+            .setView(container)
+            .setPositiveButton(R.string.drill_start) { _, _ ->
+                val count = countInput.text.toString().toIntOrNull() ?: 10
+                val target = targetInput.text.toString().toDoubleOrNull() ?: 50.0
+                drill = DrillTracker(count.coerceIn(1, 100), target.coerceAtLeast(1.0))
+                drillButton.text = getString(R.string.btn_drill_stop)
+                updateDrillStatus()
+                Toast.makeText(this, R.string.drill_started, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun onDrillAttempt(peakBallKmh: Double) {
+        val activeDrill = drill ?: return
+        val hit = activeDrill.record(peakBallKmh)
+        beep(hit)
+        updateDrillStatus()
+        if (activeDrill.isComplete) {
+            drill = null
+            drillButton.text = getString(R.string.btn_drill)
+            drillStatusText.visibility = android.view.View.GONE
+            AlertDialog.Builder(this)
+                .setTitle(R.string.drill_done_title)
+                .setMessage(
+                    getString(
+                        R.string.drill_result_format,
+                        activeDrill.hitCount, activeDrill.targetCount, activeDrill.targetKmh,
+                        activeDrill.bestKmh, activeDrill.averageKmh,
+                    )
+                )
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
+    }
+
+    private fun updateDrillStatus() {
+        val activeDrill = drill ?: return
+        drillStatusText.visibility = android.view.View.VISIBLE
+        drillStatusText.text = getString(
+            R.string.drill_status_format,
+            activeDrill.attemptCount, activeDrill.targetCount, activeDrill.bestKmh,
+        )
+    }
+
+    private fun beep(hit: Boolean) {
+        val generator = toneGenerator
+            ?: ToneGenerator(AudioManager.STREAM_MUSIC, TONE_VOLUME).also { toneGenerator = it }
+        generator.startTone(
+            if (hit) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP,
+        )
+    }
+
     // --- Manual calibration ------------------------------------------------
 
     private fun startCalibration() {
@@ -395,9 +489,12 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         frameAnalyzer?.shutdown()
         analysisExecutor.shutdown()
+        toneGenerator?.release()
+        toneGenerator = null
     }
 
     private companion object {
         const val BALL_DISPLAY_TIMEOUT_SEC = 0.5
+        const val TONE_VOLUME = 80
     }
 }
