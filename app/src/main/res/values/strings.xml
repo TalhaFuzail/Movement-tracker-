@@ -72,6 +72,19 @@
 
     <string name="suggestions_header">Suggestions</string>
 
+    <!-- Drill mode -->
+    <string name="btn_drill">Drill</string>
+    <string name="btn_drill_stop">End drill</string>
+    <string name="drill_dialog_title">Drill setup</string>
+    <string name="drill_count_hint">Attempts, e.g. 10</string>
+    <string name="drill_target_hint">Target ball speed in km/h, e.g. 50</string>
+    <string name="drill_start">Start</string>
+    <string name="drill_started">Drill started — every kick/bowl counts.</string>
+    <string name="drill_cancelled">Drill ended.</string>
+    <string name="drill_status_format">Drill %1$d/%2$d · best %3$.0f km/h</string>
+    <string name="drill_done_title">Drill complete</string>
+    <string name="drill_result_format">%1$d of %2$d attempts hit %3$.0f km/h.\nBest %4$.1f km/h · average %5$.1f km/h.</string>
+
     <!-- Slow motion analysis -->
     <string name="btn_slowmo">Slow-mo</string>
     <string name="title_slowmo">Slow-motion analysis</string>
