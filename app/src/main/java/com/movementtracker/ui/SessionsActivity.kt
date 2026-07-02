@@ -29,8 +29,10 @@ class SessionsActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri == null) return@registerForActivityResult
             val result = runCatching {
+                // Re-read from disk: after an activity recreation (rotation,
+                // process death behind the picker) the cached list is empty.
                 val json = JSONArray().also { arr ->
-                    sessions.forEach { arr.put(it.toJson()) }
+                    store.listAll().forEach { arr.put(it.toJson()) }
                 }
                 contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(json.toString(2).toByteArray())

@@ -29,6 +29,15 @@ class SessionRecorder(private val startedAtMillis: Long) {
 
     val isEmpty: Boolean get() = samples.isEmpty() && events.isEmpty()
 
+    /**
+     * Anchors t=0 at the first camera frame after the session starts, so
+     * event offsets line up with the replay video (which also starts then) —
+     * not with the first pose detection, which can be seconds later.
+     */
+    fun anchorStart(tSec: Double) {
+        if (startTSec == null) startTSec = tSec
+    }
+
     /** Feed one frame's player speed estimate. */
     fun addPlayerSample(tSec: Double, kmh: Double) {
         val start = startTSec ?: tSec.also { startTSec = it }
@@ -117,7 +126,7 @@ class SessionRecorder(private val startedAtMillis: Long) {
         // Close an in-flight sprint so it isn't lost when the user taps Stop.
         lastTSec?.let { updateSprintState(it, startTSec ?: it, 0.0) }
 
-        val duration = (lastTSec ?: 0.0) - (startTSec ?: 0.0)
+        val duration = max(0.0, (lastTSec ?: startTSec ?: 0.0) - (startTSec ?: 0.0))
         val avgMoving = if (movingTimeSec > 0.5) speedTimeIntegral / movingTimeSec else 0.0
         return SessionRecord(
             id = UUID.randomUUID().toString().take(8),

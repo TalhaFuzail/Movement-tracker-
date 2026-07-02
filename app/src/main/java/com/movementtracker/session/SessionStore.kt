@@ -40,16 +40,24 @@ class SessionStore(context: Context) {
     }
 
     // --- Session replay videos ------------------------------------------------
-    // The camera records into one temp file while a session runs; when the
-    // session is saved the temp file is renamed to `<startedAtMillis>-<id>.mp4`
-    // so it pairs with the session's JSON by naming convention.
+    // Each recording gets its own temp file (finalization is asynchronous, so
+    // a back-to-back session must never reuse the previous session's path);
+    // when the session is saved its temp file is renamed to
+    // `<startedAtMillis>-<id>.mp4`, pairing with the JSON by naming convention.
 
-    fun tempVideoFile(): File = File(videoDir, "recording.tmp.mp4")
+    fun newTempVideoFile(): File =
+        File(videoDir, "rec-${System.nanoTime()}.tmp.mp4")
 
-    /** Promotes the in-progress recording to the saved session's replay video. */
-    fun finalizeVideo(fileName: String) {
-        val temp = tempVideoFile()
+    /** Promotes a finished recording to the saved session's replay video. */
+    fun finalizeVideo(temp: File, fileName: String) {
         if (temp.exists()) temp.renameTo(File(videoDir, fileName))
+    }
+
+    /** Removes orphaned temp recordings. Call only when no recording is active. */
+    fun cleanupTempVideos() {
+        (videoDir.listFiles() ?: emptyArray())
+            .filter { it.name.endsWith(".tmp.mp4") }
+            .forEach { it.delete() }
     }
 
     fun videoFor(id: String): File? =
