@@ -29,6 +29,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    androidResources {
+        // The bundled TFLite model is memory-mapped at runtime and must not
+        // be compressed inside the APK.
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -42,9 +48,11 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$camerax")
     implementation("androidx.camera:camera-view:$camerax")
 
-    // On-device ML: human pose landmarks + generic object detection with tracking
+    // On-device ML: human pose landmarks + object detection with tracking,
+    // classified by a bundled TFLite labeler that knows sports-ball classes
     implementation("com.google.mlkit:pose-detection:18.0.0-beta5")
     implementation("com.google.mlkit:object-detection:17.0.1")
+    implementation("com.google.mlkit:object-detection-custom:17.0.1")
 
     // AR-based scale calibration (optional at runtime)
     implementation("com.google.ar:core:1.42.0")
