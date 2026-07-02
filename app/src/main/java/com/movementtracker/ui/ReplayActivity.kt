@@ -14,7 +14,6 @@ import com.movementtracker.R
 import com.movementtracker.session.ActivityType
 import com.movementtracker.session.SessionRecord
 import com.movementtracker.session.SessionStore
-import java.util.Locale
 import kotlin.math.max
 
 /**
@@ -71,20 +70,12 @@ class ReplayActivity : AppCompatActivity() {
             return
         }
         events.forEach { e ->
-            val time = formatTime(e.tOffsetSec)
-            val label = when (e.type) {
-                ActivityType.SOCCER_SHOT -> getString(R.string.replay_event_shot, time, e.peakBallKmh)
-                ActivityType.CRICKET_BOWL -> getString(R.string.replay_event_bowl, time, e.peakBallKmh)
-                ActivityType.JUMP ->
-                    getString(R.string.replay_event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
-                else -> getString(R.string.replay_event_ball, time, e.peakBallKmh)
-            }
             val button = Button(this).apply {
-                text = label
+                text = EventFormat.cueLabel(this@ReplayActivity, e)
                 setOnClickListener {
                     // Jump slightly before the event so the approach is visible.
                     videoView.seekTo(
-                        max(0.0, (e.tOffsetSec - EVENT_LEAD_IN_SEC) * 1000).toInt()
+                        max(0.0, (e.tOffsetSec - EventFormat.EVENT_LEAD_IN_SEC) * 1000).toInt()
                     )
                     videoView.start()
                 }
@@ -116,11 +107,7 @@ class ReplayActivity : AppCompatActivity() {
         videoView.pause()
     }
 
-    private fun formatTime(tSec: Double) =
-        String.format(Locale.US, "%d:%02d", (tSec / 60).toInt(), (tSec % 60).toInt())
-
     private companion object {
         const val SPEED_UPDATE_MS = 200L
-        const val EVENT_LEAD_IN_SEC = 2.0
     }
 }

@@ -30,6 +30,9 @@ object ShareCardRenderer {
     private const val WIDTH = 1080
     private const val HEIGHT = 1350
 
+    /** Below this the player never really ran (matches SessionRecorder's sprint threshold). */
+    private const val SPRINT_KMH = 14.0
+
     fun render(context: Context, session: SessionRecord, background: Bitmap?): Bitmap {
         val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -136,10 +139,13 @@ object ShareCardRenderer {
                 context.getString(label),
             )
         }
+        // A jump headlines when there was no ball action and the player never
+        // reached sprint speed — then the jump is the session's story, not the
+        // few km/h of jogging that hip tracking always records.
         val bestJumpCm = session.events
             .filter { it.type == ActivityType.JUMP }
             .maxOfOrNull { (it.extras["heightM"] ?: 0.0) * 100 } ?: 0.0
-        if (session.topSpeedKmh <= 0 && bestJumpCm > 0) {
+        if (bestJumpCm > 0 && session.topSpeedKmh < SPRINT_KMH) {
             return Headline(
                 String.format(Locale.US, "%.0f", bestJumpCm),
                 context.getString(R.string.share_unit_cm),

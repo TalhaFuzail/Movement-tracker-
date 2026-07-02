@@ -1,7 +1,7 @@
 package com.movementtracker.session
 
-import android.util.Base64
 import org.json.JSONObject
+import java.util.Base64
 
 /** One person's drill scorecard, as carried inside a challenge code. */
 data class ChallengeResult(
@@ -32,10 +32,9 @@ object ChallengeCodec {
             .put("h", result.hitCount)
             .put("b", result.bestKmh)
             .put("a", result.averageKmh)
-        return PREFIX + Base64.encodeToString(
-            json.toString().toByteArray(Charsets.UTF_8),
-            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
-        )
+        // java.util.Base64 (fine from minSdk 26) keeps this class JVM-testable.
+        return PREFIX + Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(json.toString().toByteArray(Charsets.UTF_8))
     }
 
     /** Accepts the bare code or a whole pasted message containing one. */
@@ -47,10 +46,7 @@ object ChallengeCodec {
         if (body.isEmpty()) return null
         return runCatching {
             val json = JSONObject(
-                String(
-                    Base64.decode(body, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING),
-                    Charsets.UTF_8,
-                )
+                String(Base64.getUrlDecoder().decode(body), Charsets.UTF_8)
             )
             ChallengeResult(
                 attempts = json.getInt("n").coerceIn(1, 100),

@@ -65,7 +65,10 @@ class SessionDetailActivity : AppCompatActivity() {
             }
         }
 
-        val suggestions = SuggestionEngine.suggestionsFor(session)
+        val suggestions = SuggestionEngine.suggestionsFor(
+            session,
+            resources.getStringArray(R.array.placement_zones).toList(),
+        )
         if (suggestions.isNotEmpty()) {
             findViewById<TextView>(R.id.detail_suggestions_header).visibility = View.VISIBLE
             findViewById<TextView>(R.id.detail_suggestions).apply {
@@ -118,10 +121,16 @@ class SessionDetailActivity : AppCompatActivity() {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(video.absolutePath)
-            retriever.getFrameAtTime(
-                (bestSec * 1_000_000).toLong(),
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-            )
+            val timeUs = (bestSec * 1_000_000).toLong()
+            // Decode at card size where possible — a full-resolution frame
+            // exists only to be scaled straight down onto the 1080-wide card.
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(
+                    timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 1080, 1350,
+                )
+            } else {
+                retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            }
         } catch (_: Exception) {
             null
         } finally {
