@@ -100,6 +100,8 @@ class SessionsActivity : AppCompatActivity() {
     private fun refresh() {
         sessions = store.listAll()
         showBests()
+        findViewById<View>(R.id.sessions_hint).visibility =
+            if (sessions.isEmpty()) View.GONE else View.VISIBLE
 
         val list = findViewById<ListView>(R.id.sessions_list)
         val empty = findViewById<TextView>(R.id.sessions_empty)

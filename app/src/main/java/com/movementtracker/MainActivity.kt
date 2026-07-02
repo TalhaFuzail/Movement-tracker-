@@ -316,6 +316,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_wizard_done).setOnClickListener {
             setupPanel.visibility = android.view.View.GONE
         }
+        findViewById<Button>(R.id.btn_help).setOnClickListener { showHelp() }
 
         voiceEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOICE, false)
         voiceButton = findViewById(R.id.btn_voice)
@@ -791,6 +792,46 @@ class MainActivity : AppCompatActivity() {
         updateWizard() // real state and colors, not the layout's placeholders
     }
 
+    // --- Help ------------------------------------------------------------------
+
+    /**
+     * Every feature explained in plain words, in one scrollable dialog —
+     * bold section titles, short bodies, no jargon.
+     */
+    private fun showHelp() {
+        val sections = listOf(
+            R.string.help_live_title to R.string.help_live_body,
+            R.string.help_calibrate_title to R.string.help_calibrate_body,
+            R.string.help_session_title to R.string.help_session_body,
+            R.string.help_sessions_title to R.string.help_sessions_body,
+            R.string.help_drill_title to R.string.help_drill_body,
+            R.string.help_challenge_title to R.string.help_challenge_body,
+            R.string.help_target_title to R.string.help_target_body,
+            R.string.help_slowmo_title to R.string.help_slowmo_body,
+            R.string.help_share_title to R.string.help_share_body,
+            R.string.help_voice_title to R.string.help_voice_body,
+            R.string.help_setup_title to R.string.help_setup_body,
+        )
+        val text = android.text.SpannableStringBuilder()
+        sections.forEachIndexed { index, (titleRes, bodyRes) ->
+            if (index > 0) text.append("\n\n")
+            val title = getString(titleRes)
+            val start = text.length
+            text.append(title)
+            text.setSpan(
+                android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                start, start + title.length,
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            text.append("\n").append(getString(bodyRes))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.help_title)
+            .setMessage(text)
+            .setPositiveButton(R.string.help_ok, null)
+            .show()
+    }
+
     // --- Drill mode ----------------------------------------------------------
 
     private fun toggleDrill() {
@@ -814,10 +855,15 @@ class MainActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_TEXT
             hint = getString(R.string.drill_challenge_hint)
         }
+        val explainer = TextView(this).apply {
+            text = getString(R.string.drill_explainer)
+            textSize = 14f
+        }
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             val pad = (16 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, 0)
+            addView(explainer)
             addView(countInput)
             addView(targetInput)
             addView(challengeInput)
@@ -1004,6 +1050,7 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(
                     getString(R.string.calibrate_option_points),
                     getString(R.string.calibrate_option_height),
+                    getString(R.string.calibrate_option_what),
                 )
             ) { _, which ->
                 when (which) {
@@ -1013,6 +1060,11 @@ class MainActivity : AppCompatActivity() {
                             .show()
                     }
                     1 -> promptPlayerHeight()
+                    2 -> AlertDialog.Builder(this)
+                        .setTitle(R.string.help_calibrate_title)
+                        .setMessage(R.string.help_calibrate_body)
+                        .setPositiveButton(R.string.help_ok, null)
+                        .show()
                 }
             }
             .show()

@@ -31,6 +31,17 @@
             android:textSize="15sp" />
     </FrameLayout>
 
+    <TextView
+        android:id="@+id/replay_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="6dp"
+        android:text="@string/replay_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
     <HorizontalScrollView
         android:id="@+id/replay_events_scroll"
         android:layout_width="match_parent"

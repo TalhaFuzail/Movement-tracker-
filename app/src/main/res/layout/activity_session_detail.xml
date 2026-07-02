@@ -56,6 +56,16 @@
             android:textSize="13sp"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/detail_chart_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/chart_hint"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
         <com.movementtracker.ui.SpeedChartView
             android:id="@+id/detail_chart"
             android:layout_width="match_parent"
@@ -71,6 +81,16 @@
             android:text="@string/placement_header"
             android:textAllCaps="true"
             android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/detail_placement_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/placement_hint"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
             android:visibility="gone" />
@@ -117,6 +137,16 @@
             android:text="@string/suggestions_header"
             android:textAllCaps="true"
             android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/detail_suggestions_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/suggestions_hint"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
             android:visibility="gone" />

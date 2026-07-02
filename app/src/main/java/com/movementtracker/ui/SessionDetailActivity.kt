@@ -59,6 +59,7 @@ class SessionDetailActivity : AppCompatActivity() {
 
         if (session.samples.size >= 2) {
             findViewById<TextView>(R.id.detail_chart_header).visibility = View.VISIBLE
+            findViewById<View>(R.id.detail_chart_hint).visibility = View.VISIBLE
             findViewById<SpeedChartView>(R.id.detail_chart).apply {
                 visibility = View.VISIBLE
                 setData(session.samples, session.events, session.durationSec)
@@ -71,6 +72,7 @@ class SessionDetailActivity : AppCompatActivity() {
         )
         if (suggestions.isNotEmpty()) {
             findViewById<TextView>(R.id.detail_suggestions_header).visibility = View.VISIBLE
+            findViewById<View>(R.id.detail_suggestions_hint).visibility = View.VISIBLE
             findViewById<TextView>(R.id.detail_suggestions).apply {
                 visibility = View.VISIBLE
                 text = suggestions.joinToString("\n\n") { "• $it" }
@@ -148,6 +150,7 @@ class SessionDetailActivity : AppCompatActivity() {
         val onTarget = zones.count { it in 0..8 }
 
         findViewById<View>(R.id.detail_placement_header).visibility = View.VISIBLE
+        findViewById<View>(R.id.detail_placement_hint).visibility = View.VISIBLE
         findViewById<PlacementGridView>(R.id.detail_placement_grid).apply {
             visibility = View.VISIBLE
             setCounts(counts)
