@@ -53,4 +53,18 @@
     <string name="event_ball">%1$s  Ball event — %2$.1f km/h</string>
 
     <string name="suggestions_header">Suggestions</string>
+
+    <!-- Slow motion analysis -->
+    <string name="btn_slowmo">Slow-mo</string>
+    <string name="title_slowmo">Slow-motion analysis</string>
+    <string name="slowmo_intro">Record a slow-motion video (120 or 240 fps) of a kick, bowl or throw, then pick it here. Analysing at the true capture rate measures fast balls far more accurately than the live camera.\n\nTip: film side-on, keep the whole body in frame.</string>
+    <string name="btn_pick_video">Choose video</string>
+    <string name="slowmo_analyzing">Reading clip…</string>
+    <string name="slowmo_progress">Analysing frame %1$d of %2$d…</string>
+    <string name="slowmo_failed">Couldn\'t analyse that clip — nothing was tracked. Make sure the player and ball are visible.</string>
+    <string name="slowmo_done">Analysis complete.</string>
+    <string name="slowmo_clip_length">Clip covers %1$.2f s of real time</string>
+    <string name="slowmo_top_ball">Top ball speed: %1$.1f km/h</string>
+    <string name="slowmo_top_player">Top player speed: %1$.1f km/h</string>
+    <string name="slowmo_saved_note">Saved to Sessions with full stats and suggestions.</string>
 </resources>

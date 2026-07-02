@@ -81,7 +81,14 @@
                 android:id="@+id/btn_sessions"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
                 android:text="@string/btn_sessions" />
+
+            <Button
+                android:id="@+id/btn_slowmo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_slowmo" />
         </LinearLayout>
 
         <LinearLayout

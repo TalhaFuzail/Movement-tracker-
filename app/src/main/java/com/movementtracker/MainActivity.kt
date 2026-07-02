@@ -33,6 +33,7 @@ import com.movementtracker.session.SessionRecorder
 import com.movementtracker.session.SessionStore
 import com.movementtracker.ui.OverlayView
 import com.movementtracker.ui.SessionsActivity
+import com.movementtracker.ui.SlowMoActivity
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -100,6 +101,9 @@ class MainActivity : AppCompatActivity() {
         sessionButton.setOnClickListener { toggleSession() }
         findViewById<Button>(R.id.btn_sessions).setOnClickListener {
             startActivity(Intent(this, SessionsActivity::class.java))
+        }
+        findViewById<Button>(R.id.btn_slowmo).setOnClickListener {
+            startActivity(Intent(this, SlowMoActivity::class.java))
         }
 
         overlay.onCalibrationPointsReady = { a, b -> promptCalibrationDistance(a, b) }
