@@ -21,6 +21,17 @@ scorecard), **speaks ball speeds out loud**, charts your **speed
 timeline**, keeps **personal bests** with a monthly trend, warns when the
 **phone is moving**, and **exports** everything to JSON.
 
+On top of that it generates **share cards** (a polished stats image over
+a replay frame, ready for any messaging app), lets you **challenge a
+friend** with a paste-able drill code and play against their scorecard,
+records **shot placement** against a 3×3 goal target with a per-session
+heat grid, plays two replays **side by side** for technique comparison,
+measures **technique at the strike moment** (knee angle and
+follow-through on shots, elbow angle and release height on bowls) and
+coaches from those numbers, walks new users through a **guided setup
+check** with live checkmarks, and shows a **calibration confidence
+badge** so you always know how much to trust the readings.
+
 ## How it works
 
 | What | How |
@@ -95,11 +106,28 @@ on-device — the Pixel 8's Tensor G3 handles this comfortably in real time.
   angle attached to the matching event.
 - [x] **Shake warning** when the gyroscope says the phone isn't still.
 - [x] **JSON export** of all sessions from the sessions screen.
-- [x] **Your real height** for auto calibration; **one-time setup tips**
-  on first launch.
+- [x] **Your real height** for auto calibration.
+- [x] **Share cards** — a 4:5 stats card rendered over a replay frame from
+  the session's best moment, shared via the system share sheet.
+- [x] **Challenge a friend** — a finished drill exports a short code;
+  pasting it into the drill dialog replays the same drill against the
+  sender's scorecard, with a win/lose verdict.
+- [x] **Shot placement zones** — tap the goal's corners to set a 3×3
+  target; every attempt is tagged with its zone (or "off target"), shown
+  as a heat grid with an accuracy percentage in the session detail.
+- [x] **Side-by-side comparison** — two session replays stacked, each
+  cued to an event, played together for technique comparison.
+- [x] **Technique feedback** — knee angle at contact and follow-through
+  height for shots, elbow angle and release height for bowls, measured
+  from the pose skeleton at the strike moment and fed into the coaching
+  suggestions.
+- [x] **Guided setup wizard** — a live checklist (phone still, player
+  fully in frame, scale calibrated) on first launch and behind a Setup
+  button.
+- [x] **Calibration confidence badge** — colour-coded status with an
+  error band (AR/manual ≈ ±5 %, auto ≈ ±15 %).
 - [ ] Multi-pose skeletons (two full skeletons needs a different pose model,
   e.g. MoveNet MultiPose).
-- [ ] Shot placement zones / target overlay for goal practice.
 
 ## Project layout
 
@@ -124,14 +152,18 @@ app/src/main/java/com/movementtracker/
 │   ├── SessionStore.kt          # On-device JSON + replay video storage
 │   ├── SessionRecorder.kt       # Live accumulation: distance, sprints…
 │   ├── BallEpisodeDetector.kt   # Groups ball-speed spikes into events
-│   ├── DrillTracker.kt          # Attempts vs a target speed
+│   ├── DrillTracker.kt          # Attempts vs a target speed (or a rival)
+│   ├── ChallengeCodec.kt        # Drill scorecard ↔ paste-able code
 │   ├── ProgressStats.kt         # Personal bests + monthly trend
 │   └── SuggestionEngine.kt      # Coaching advice from measured data
 └── ui/
-    ├── OverlayView.kt           # Skeleton/ball/trail overlay + taps
+    ├── OverlayView.kt           # Skeleton/ball/trail/target overlay + taps
     ├── SpeedChartView.kt        # Canvas speed-timeline chart
-    ├── SessionsActivity.kt      # History list, bests, export
-    ├── SessionDetailActivity.kt # Stats, chart, events, suggestions
+    ├── PlacementGridView.kt     # 3×3 shot-placement heat grid
+    ├── ShareCardRenderer.kt     # Session stats → share-card bitmap
+    ├── SessionsActivity.kt      # History list, bests, export, compare
+    ├── SessionDetailActivity.kt # Stats, chart, placement, suggestions
     ├── ReplayActivity.kt        # Session video with event jumping
+    ├── CompareActivity.kt       # Two replays side by side
     └── SlowMoActivity.kt        # Slow-motion clip analysis
 ```

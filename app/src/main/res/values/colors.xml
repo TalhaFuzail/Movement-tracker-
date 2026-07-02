@@ -8,4 +8,8 @@
     <color name="divider">#E4E4DF</color>
     <!-- Translucent white panel used over the camera feed -->
     <color name="panel_scrim">#EEFFFFFF</color>
+    <!-- Setup/calibration confidence states: trustworthy, rough, unusable -->
+    <color name="status_good">#2AAE7E</color>
+    <color name="status_caution">#B98A2E</color>
+    <color name="status_warn">#C75450</color>
 </resources>

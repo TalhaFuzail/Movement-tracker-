@@ -9,6 +9,8 @@ package com.movementtracker.session
 class DrillTracker(
     val targetCount: Int,
     val targetKmh: Double,
+    /** A friend's scorecard to beat, when this drill was started from a challenge code. */
+    val rival: ChallengeResult? = null,
 ) {
 
     private val attempts = mutableListOf<Double>()

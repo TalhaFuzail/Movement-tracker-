@@ -44,6 +44,11 @@
             android:label="@string/title_replay" />
 
         <activity
+            android:name=".ui.CompareActivity"
+            android:exported="false"
+            android:label="@string/title_compare" />
+
+        <activity
             android:name=".ui.SlowMoActivity"
             android:exported="false"
             android:label="@string/title_slowmo" />
@@ -57,5 +62,16 @@
         <meta-data
             android:name="com.google.ar.core"
             android:value="optional" />
+
+        <!-- Exposes rendered share cards to the share sheet, read-only. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.movementtracker.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

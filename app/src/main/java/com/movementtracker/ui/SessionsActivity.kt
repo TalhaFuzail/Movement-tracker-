@@ -55,6 +55,42 @@ class SessionsActivity : AppCompatActivity() {
                     SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
             )
         }
+        findViewById<View>(R.id.btn_compare).setOnClickListener { pickCompareSessions() }
+    }
+
+    /**
+     * Side-by-side comparison: pick two sessions that have replay videos,
+     * one after the other, then open them stacked in [CompareActivity].
+     */
+    private fun pickCompareSessions() {
+        val withVideo = sessions.filter { store.videoFor(it.id) != null }
+        if (withVideo.size < 2) {
+            Toast.makeText(this, R.string.compare_needs_videos, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val dateFormat = SimpleDateFormat("EEE d MMM, HH:mm", Locale.getDefault())
+        val labels = withVideo
+            .map { dateFormat.format(Date(it.startedAtMillis)) }
+            .toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.compare_pick_first)
+            .setItems(labels) { _, first ->
+                val rest = withVideo.filterIndexed { index, _ -> index != first }
+                val restLabels = rest
+                    .map { dateFormat.format(Date(it.startedAtMillis)) }
+                    .toTypedArray()
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.compare_pick_second)
+                    .setItems(restLabels) { _, second ->
+                        startActivity(
+                            Intent(this, CompareActivity::class.java)
+                                .putExtra(CompareActivity.EXTRA_SESSION_A, withVideo[first].id)
+                                .putExtra(CompareActivity.EXTRA_SESSION_B, rest[second].id)
+                        )
+                    }
+                    .show()
+            }
+            .show()
     }
 
     override fun onResume() {
@@ -100,6 +136,10 @@ class SessionsActivity : AppCompatActivity() {
         val header = findViewById<TextView>(R.id.bests_header)
         val body = findViewById<TextView>(R.id.bests_body)
         val exportButton = findViewById<View>(R.id.btn_export)
+        val compareButton = findViewById<View>(R.id.btn_compare)
+        compareButton.visibility =
+            if (sessions.count { store.videoFor(it.id) != null } >= 2) View.VISIBLE
+            else View.GONE
         val bests = ProgressStats.compute(sessions, System.currentTimeMillis())
         if (bests == null) {
             header.visibility = View.GONE
