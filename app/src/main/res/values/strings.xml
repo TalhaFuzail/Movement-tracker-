@@ -9,6 +9,7 @@
     <string name="ball_speed_none">Ball: — km/h</string>
 
     <string name="player_speed_format">Player: %1$.1f km/h</string>
+    <string name="player2_speed_format">Player 2: %1$.1f km/h</string>
     <string name="ball_speed_format">Ball: %1$.1f km/h</string>
     <string name="peak_ball_speed_format">Peak ball: %1$.1f km/h</string>
 

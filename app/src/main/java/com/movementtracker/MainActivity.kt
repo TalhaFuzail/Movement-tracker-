@@ -41,6 +41,7 @@ import com.movementtracker.analysis.FrameAnalyzer
 import com.movementtracker.analysis.FrameResult
 import com.movementtracker.analysis.ImpactAudioDetector
 import com.movementtracker.analysis.JumpDetector
+import com.movementtracker.analysis.PersonTracker
 import com.movementtracker.analysis.SpeedCalculator
 import com.movementtracker.ar.ArCalibrateActivity
 import com.movementtracker.session.ActivityType
@@ -74,6 +75,12 @@ class MainActivity : AppCompatActivity() {
     private val ballSpeed = SpeedCalculator(windowSeconds = 0.12, smoothing = 0.6)
     private val ballTracker = BallTracker()
     private val calibration = CalibrationManager()
+
+    // Second player: box-centre tracking of another detected person.
+    private val player2Speed = SpeedCalculator(windowSeconds = 0.35, smoothing = 0.35)
+    private val personTracker = PersonTracker()
+    private var lastPlayer2SeenSec = -1.0
+    private lateinit var player2SpeedText: TextView
 
     private var peakBallKmh = 0.0
     private var lastBallSeenSec = -1.0
@@ -158,6 +165,7 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.preview_view)
         overlay = findViewById(R.id.overlay_view)
         playerSpeedText = findViewById(R.id.player_speed)
+        player2SpeedText = findViewById(R.id.player2_speed)
         ballSpeedText = findViewById(R.id.ball_speed)
         peakBallText = findViewById(R.id.peak_ball_speed)
         calibrationStatusText = findViewById(R.id.calibration_status)
@@ -289,6 +297,34 @@ class MainActivity : AppCompatActivity() {
             jumpDetector.update(result.timestampSec, hipCenter.y.toDouble(), metersPerPixel)
         }
 
+        // --- Second player --------------------------------------------------
+        var viewPlayer2Box: RectF? = null
+        if (metersPerPixel != null) {
+            val poseBox = if (result.landmarks.isEmpty()) null else {
+                val xs = result.landmarks.values.map { it.x }
+                val ys = result.landmarks.values.map { it.y }
+                RectF(xs.min(), ys.min(), xs.max(), ys.max())
+            }
+            val person2 = personTracker.pick(result.objects, poseBox, result.timestampSec)
+            if (person2 != null) {
+                if (personTracker.startedNewTrack) player2Speed.reset()
+                val box = person2.boundingBox
+                val topLeft = overlay.imageToView(PointF(box.left.toFloat(), box.top.toFloat()))
+                val bottomRight =
+                    overlay.imageToView(PointF(box.right.toFloat(), box.bottom.toFloat()))
+                viewPlayer2Box = RectF(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)
+                val center = PointF(viewPlayer2Box.centerX(), viewPlayer2Box.centerY())
+                val kmh = player2Speed.add(result.timestampSec, center, metersPerPixel) * 3.6
+                lastPlayer2SeenSec = result.timestampSec
+                player2SpeedText.visibility = android.view.View.VISIBLE
+                player2SpeedText.text = getString(R.string.player2_speed_format, kmh)
+            } else if (lastPlayer2SeenSec >= 0 &&
+                result.timestampSec - lastPlayer2SeenSec > PLAYER2_DISPLAY_TIMEOUT_SEC
+            ) {
+                player2SpeedText.visibility = android.view.View.GONE
+            }
+        }
+
         // --- Ball ---------------------------------------------------------
         val ball = ballTracker.pick(
             result.objects, result.imageWidth, result.imageHeight, result.timestampSec,
@@ -335,7 +371,7 @@ class MainActivity : AppCompatActivity() {
             else -> getString(R.string.calibration_none)
         }
 
-        overlay.update(viewLandmarks, viewBallBox)
+        overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box)
     }
 
     /**
@@ -584,5 +620,6 @@ class MainActivity : AppCompatActivity() {
         const val TONE_VOLUME = 80
         const val PREF_VOICE = "voice_announcements"
         const val IMPACT_MATCH_WINDOW_SEC = 2.5
+        const val PLAYER2_DISPLAY_TIMEOUT_SEC = 1.0
     }
 }

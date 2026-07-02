@@ -35,6 +35,16 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/player2_speed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/ball_speed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
