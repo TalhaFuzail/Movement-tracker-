@@ -60,6 +60,14 @@ class OverlayView @JvmOverloads constructor(
     /** Second player's bounding box in *view* coordinates, if tracked. */
     private var player2Box: RectF? = null
 
+    /** Recent ball positions (oldest first) in *view* coordinates. */
+    private var ballTrail: List<PointF> = emptyList()
+    private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2AAE7E")
+        strokeWidth = 5f
+        strokeCap = Paint.Cap.ROUND
+    }
+
     var calibrationMode = false
         set(value) {
             field = value
@@ -90,10 +98,12 @@ class OverlayView @JvmOverloads constructor(
         viewLandmarks: Map<Int, PointF>,
         viewBallBox: RectF?,
         viewPlayer2Box: RectF? = null,
+        viewBallTrail: List<PointF> = emptyList(),
     ) {
         landmarks = viewLandmarks
         ballBox = viewBallBox
         player2Box = viewPlayer2Box
+        ballTrail = viewBallTrail
         invalidate()
     }
 
@@ -107,6 +117,14 @@ class OverlayView @JvmOverloads constructor(
         }
         for (p in landmarks.values) {
             canvas.drawCircle(p.x, p.y, 5f, jointPaint)
+        }
+
+        // Trail fades from transparent (oldest) to solid (newest).
+        for (i in 1 until ballTrail.size) {
+            trailPaint.alpha = (40 + 180 * i / ballTrail.size).coerceAtMost(220)
+            val a = ballTrail[i - 1]
+            val b = ballTrail[i]
+            canvas.drawLine(a.x, a.y, b.x, b.y, trailPaint)
         }
 
         ballBox?.let { box ->

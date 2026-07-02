@@ -85,6 +85,15 @@ class MainActivity : AppCompatActivity() {
     private var peakBallKmh = 0.0
     private var lastBallSeenSec = -1.0
 
+    // Ball flight: a short fading trail for the overlay, and the launch
+    // angle measured over the first ~0.2 s after the ball takes off.
+    private val ballTrail = ArrayDeque<Pair<Double, PointF>>()
+    private var launchAnchor: Pair<Double, PointF>? = null
+    private var launchAngleComputed = false
+    private var lastLaunchAngleDeg = 0.0
+    private var lastLaunchTimeSec = -1000.0
+    private lateinit var launchAngleText: TextView
+
     private lateinit var sessionStore: SessionStore
     private lateinit var sessionButton: Button
     private var sessionRecorder: SessionRecorder? = null
@@ -96,10 +105,13 @@ class MainActivity : AppCompatActivity() {
     private val activityClassifier = ActivityClassifier { tSec, type, peakBallKmh, playerKmh, extras ->
         // The camera timestamp and the audio detector share the boot clock,
         // so a mic spike near the event means the strike was actually heard.
-        val enriched =
+        var enriched =
             if (kotlin.math.abs(tSec - lastImpactSoundSec) < IMPACT_MATCH_WINDOW_SEC) {
                 extras + ("impactConfirmed" to 1.0)
             } else extras
+        if (kotlin.math.abs(tSec - lastLaunchTimeSec) < LAUNCH_MATCH_WINDOW_SEC) {
+            enriched = enriched + ("launchAngleDeg" to lastLaunchAngleDeg)
+        }
         sessionRecorder?.addBallEvent(tSec, type, peakBallKmh, playerKmh, enriched)
         onDrillAttempt(peakBallKmh)
         announce(type, peakBallKmh)
@@ -168,6 +180,7 @@ class MainActivity : AppCompatActivity() {
         player2SpeedText = findViewById(R.id.player2_speed)
         ballSpeedText = findViewById(R.id.ball_speed)
         peakBallText = findViewById(R.id.peak_ball_speed)
+        launchAngleText = findViewById(R.id.launch_angle)
         calibrationStatusText = findViewById(R.id.calibration_status)
 
         findViewById<Button>(R.id.btn_calibrate).setOnClickListener { startCalibration() }
@@ -345,6 +358,15 @@ class MainActivity : AppCompatActivity() {
             peakBallKmh = max(peakBallKmh, kmh)
             lastBallSeenSec = result.timestampSec
 
+            if (ballTracker.startedNewTrack) ballTrail.clear()
+            ballTrail.addLast(result.timestampSec to center)
+            while (ballTrail.isNotEmpty() &&
+                result.timestampSec - ballTrail.first().first > TRAIL_SECONDS
+            ) {
+                ballTrail.removeFirst()
+            }
+            updateLaunchAngle(result.timestampSec, center, kmh)
+
             ballSpeedText.text = getString(R.string.ball_speed_format, kmh)
             peakBallText.text = getString(R.string.peak_ball_speed_format, peakBallKmh)
         } else if (lastBallSeenSec >= 0 &&
@@ -371,7 +393,34 @@ class MainActivity : AppCompatActivity() {
             else -> getString(R.string.calibration_none)
         }
 
-        overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box)
+        overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box, ballTrail.map { it.second })
+    }
+
+    /**
+     * Launch angle: the ball's direction over its first ~0.2 s of fast flight,
+     * relative to horizontal (positive = upward). Only meaningful side-on,
+     * like the speeds themselves.
+     */
+    private fun updateLaunchAngle(tSec: Double, center: PointF, kmh: Double) {
+        if (kmh < LAUNCH_SPEED_KMH) {
+            launchAnchor = null
+            launchAngleComputed = false
+            return
+        }
+        val anchor = launchAnchor
+        if (anchor == null) {
+            launchAnchor = tSec to center
+            return
+        }
+        if (launchAngleComputed || tSec - anchor.first < LAUNCH_MEASURE_SEC) return
+        val dx = (center.x - anchor.second.x).toDouble()
+        val dy = (anchor.second.y - center.y).toDouble() // screen y grows downward
+        if (hypot(dx, dy) < MIN_LAUNCH_TRAVEL_PX) return
+        launchAngleComputed = true
+        lastLaunchAngleDeg = Math.toDegrees(kotlin.math.atan2(dy, kotlin.math.abs(dx)))
+        lastLaunchTimeSec = tSec
+        launchAngleText.visibility = android.view.View.VISIBLE
+        launchAngleText.text = getString(R.string.launch_angle_format, lastLaunchAngleDeg)
     }
 
     /**
@@ -621,5 +670,10 @@ class MainActivity : AppCompatActivity() {
         const val PREF_VOICE = "voice_announcements"
         const val IMPACT_MATCH_WINDOW_SEC = 2.5
         const val PLAYER2_DISPLAY_TIMEOUT_SEC = 1.0
+        const val TRAIL_SECONDS = 1.2
+        const val LAUNCH_SPEED_KMH = 20.0
+        const val LAUNCH_MEASURE_SEC = 0.15
+        const val MIN_LAUNCH_TRAVEL_PX = 24.0
+        const val LAUNCH_MATCH_WINDOW_SEC = 4.0
     }
 }

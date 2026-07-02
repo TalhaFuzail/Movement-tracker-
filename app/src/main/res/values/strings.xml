@@ -12,6 +12,8 @@
     <string name="player2_speed_format">Player 2: %1$.1f km/h</string>
     <string name="ball_speed_format">Ball: %1$.1f km/h</string>
     <string name="peak_ball_speed_format">Peak ball: %1$.1f km/h</string>
+    <string name="launch_angle_format">Launch angle: %1$.0f°</string>
+    <string name="event_launch_suffix">" · launch %1$.0f°"</string>
 
     <string name="btn_calibrate">Calibrate</string>
     <string name="btn_reset_peak">Reset peak</string>
