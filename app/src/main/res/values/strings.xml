@@ -23,4 +23,34 @@
     <string name="calibration_distance_hint">Distance in metres, e.g. 10</string>
     <string name="calibration_saved">Calibration saved.</string>
     <string name="calibration_invalid">Please enter a valid distance in metres.</string>
+
+    <!-- Sessions -->
+    <string name="btn_session_start">Start session</string>
+    <string name="btn_session_stop">Stop session</string>
+    <string name="btn_sessions">Sessions</string>
+    <string name="title_sessions">Sessions</string>
+    <string name="title_session_detail">Session</string>
+    <string name="session_started">Session started — recording stats.</string>
+    <string name="session_saved">Session saved.</string>
+    <string name="session_discarded_empty">Nothing was tracked — session discarded.</string>
+    <string name="sessions_empty">No sessions yet.\nStart one from the camera screen.</string>
+    <string name="session_row_format">%1$s\n%2$d min %3$d s · top %4$.1f km/h</string>
+    <string name="session_delete_title">Delete this session?</string>
+    <string name="session_delete_confirm">Delete</string>
+
+    <string name="stat_duration">Duration: %1$d min %2$d s</string>
+    <string name="stat_top_speed">Top speed: %1$.1f km/h</string>
+    <string name="stat_avg_speed">Avg speed (moving): %1$.1f km/h</string>
+    <string name="stat_distance">Distance covered: %1$.0f m</string>
+    <string name="stat_sprints">Sprints: %1$d</string>
+    <string name="stat_ball_events">Ball events: %1$d</string>
+
+    <string name="events_header">Events</string>
+    <string name="events_none">No events recorded.</string>
+    <string name="event_sprint">%1$s  Sprint — peak %2$.1f km/h for %3$.1f s</string>
+    <string name="event_soccer_shot">%1$s  Soccer shot — ball %2$.1f km/h</string>
+    <string name="event_cricket_bowl">%1$s  Cricket bowl — ball %2$.1f km/h</string>
+    <string name="event_ball">%1$s  Ball event — %2$.1f km/h</string>
+
+    <string name="suggestions_header">Suggestions</string>
 </resources>
