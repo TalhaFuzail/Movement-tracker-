@@ -28,10 +28,12 @@
             android:id="@+id/detail_events_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="28dp"
             android:text="@string/events_header"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textAllCaps="true"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/detail_events"
@@ -45,10 +47,12 @@
             android:id="@+id/detail_suggestions_header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="28dp"
             android:text="@string/suggestions_header"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:letterSpacing="0.08"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
             android:visibility="gone" />
 
         <TextView
