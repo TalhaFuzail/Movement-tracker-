@@ -8,9 +8,18 @@ Android 8.0+ (API 26) device; everything is on-device, no internet needed.
 Beyond the live readouts it records **sessions** (top/average speed,
 distance, sprints, every kick/bowl with its peak speed — all stored only
 on your phone), **detects what you're doing** (cricket bowling, soccer
-shots, sprinting) and gives **coaching suggestions computed from your own
-numbers**, analyses **240 fps slow-motion clips** for accurate fast-ball
-speeds, and can calibrate real-world scale automatically with **ARCore**.
+shots, sprinting, vertical jumps) and gives **coaching suggestions
+computed from your own numbers**, analyses **240 fps slow-motion clips**
+for accurate fast-ball speeds, and can calibrate real-world scale
+automatically with **ARCore**.
+
+It also records a **replay video** of every session with jump-to-event
+buttons, draws the **ball's flight path** and measures **launch angle**,
+tracks a **second player**, listens for the **impact sound** of a strike,
+runs **drills** (N attempts vs a target speed, with beeps and a
+scorecard), **speaks ball speeds out loud**, charts your **speed
+timeline**, keeps **personal bests** with a monthly trend, warns when the
+**phone is moving**, and **exports** everything to JSON.
 
 ## How it works
 
@@ -64,11 +73,33 @@ on-device — the Pixel 8's Tensor G3 handles this comfortably in real time.
 - [x] **ARCore scale** — real-world scale from plane detection + camera
   intrinsics instead of manual calibration.
 - [x] **Custom ball model** — a bundled TFLite labeler (3.8 MB, in
-  `app/src/main/assets/`) classifies every detection; candidates labelled
-  soccer/cricket/tennis/base/rugby ball are preferred over shape heuristics
-  for much more reliable ball lock-on.
-- [ ] Multi-player tracking (pose detection currently follows one person).
-- [ ] Speed timeline chart in the session detail screen.
+  `app/src/main/assets/`, from Google's ML Kit samples) classifies every
+  detection; candidates labelled soccer/cricket/tennis/base/rugby ball are
+  preferred over shape heuristics for much more reliable ball lock-on.
+- [x] **Speed timeline chart** in the session detail screen, with ball
+  events marked on the baseline.
+- [x] **Session replay video** — recorded during live sessions, with
+  jump-to-event buttons and the measured speed shown at the playback
+  position.
+- [x] **Personal bests & trend** — fastest sprint/shot/bowl, highest jump,
+  totals, and top-speed change vs the previous month.
+- [x] **Drill mode** — N attempts against a target ball speed, beeps per
+  attempt, scorecard at the end.
+- [x] **Voice announcements** — each shot/bowl speed spoken aloud.
+- [x] **Impact sound confirmation** — a mic RMS spike near a ball event
+  marks it "impact heard" (optional permission).
+- [x] **Vertical jump detection** — jump height from the hip trajectory.
+- [x] **Second player tracking** — box-centre speed for another detected
+  person, outlined on the overlay.
+- [x] **Ball flight path + launch angle** — fading trail on the overlay,
+  angle attached to the matching event.
+- [x] **Shake warning** when the gyroscope says the phone isn't still.
+- [x] **JSON export** of all sessions from the sessions screen.
+- [x] **Your real height** for auto calibration; **one-time setup tips**
+  on first launch.
+- [ ] Multi-pose skeletons (two full skeletons needs a different pose model,
+  e.g. MoveNet MultiPose).
+- [ ] Shot placement zones / target overlay for goal practice.
 
 ## Project layout
 
@@ -76,10 +107,13 @@ on-device — the Pixel 8's Tensor G3 handles this comfortably in real time.
 app/src/main/java/com/movementtracker/
 ├── MainActivity.kt              # CameraX setup, wires analysis → UI
 ├── analysis/
-│   ├── FrameAnalyzer.kt         # Runs pose + object detection per frame
+│   ├── FrameAnalyzer.kt         # Runs pose + labelled object detection per frame
 │   ├── SpeedCalculator.kt       # Sliding-window speed with smoothing
 │   ├── CalibrationManager.kt    # AR / manual / auto px→m scale
-│   ├── BallTracker.kt           # Picks & follows the ball across frames
+│   ├── BallTracker.kt           # Picks & follows the ball (label-first)
+│   ├── PersonTracker.kt         # Follows a second detected player
+│   ├── JumpDetector.kt          # Vertical jumps from hip trajectory
+│   ├── ImpactAudioDetector.kt   # Ball-strike sound spikes from the mic
 │   ├── ActivityClassifier.kt    # Bowl vs shot vs generic ball event
 │   └── SlowMoAnalyzer.kt        # Offline high-fps clip pipeline
 ├── ar/
@@ -87,13 +121,17 @@ app/src/main/java/com/movementtracker/
 │   └── CameraBackgroundRenderer.kt
 ├── session/
 │   ├── SessionModels.kt         # SessionRecord / events / samples (+JSON)
-│   ├── SessionStore.kt          # On-device JSON persistence
+│   ├── SessionStore.kt          # On-device JSON + replay video storage
 │   ├── SessionRecorder.kt       # Live accumulation: distance, sprints…
 │   ├── BallEpisodeDetector.kt   # Groups ball-speed spikes into events
+│   ├── DrillTracker.kt          # Attempts vs a target speed
+│   ├── ProgressStats.kt         # Personal bests + monthly trend
 │   └── SuggestionEngine.kt      # Coaching advice from measured data
 └── ui/
-    ├── OverlayView.kt           # Skeleton/ball overlay + calibration taps
-    ├── SessionsActivity.kt      # Session history list
-    ├── SessionDetailActivity.kt # Stats, events, suggestions
+    ├── OverlayView.kt           # Skeleton/ball/trail overlay + taps
+    ├── SpeedChartView.kt        # Canvas speed-timeline chart
+    ├── SessionsActivity.kt      # History list, bests, export
+    ├── SessionDetailActivity.kt # Stats, chart, events, suggestions
+    ├── ReplayActivity.kt        # Session video with event jumping
     └── SlowMoActivity.kt        # Slow-motion clip analysis
 ```
