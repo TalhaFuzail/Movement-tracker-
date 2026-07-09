@@ -48,6 +48,7 @@ class SlowMoActivity : AppCompatActivity() {
     private fun analyze(uri: Uri) {
         pickButton.isEnabled = false
         results.text = ""
+        results.visibility = View.GONE
         progress.visibility = View.VISIBLE
         status.text = getString(R.string.slowmo_analyzing)
 
@@ -70,6 +71,7 @@ class SlowMoActivity : AppCompatActivity() {
                 } else {
                     status.text = getString(R.string.slowmo_done)
                     results.text = summarize(record)
+                    results.visibility = View.VISIBLE
                 }
             }
         }

@@ -17,9 +17,11 @@ import kotlin.math.max
  * skeleton, the tracked ball, and — in calibration mode — the two reference
  * points the user taps.
  *
- * The analysis image and the preview view have different sizes; PreviewView
- * fills the screen with a centre-crop, so this view applies the same
- * transform to map image-space detections onto screen pixels.
+ * All tracking data arrives in upright *image* coordinates (the space the
+ * speed math runs in) and is mapped to screen pixels only here, at draw
+ * time. PreviewView fills the screen with a centre-crop; this view applies
+ * the same transform. Calibration taps are converted the other way so the
+ * saved scale is layout-independent.
  */
 class OverlayView @JvmOverloads constructor(
     context: Context,
@@ -38,46 +40,47 @@ class OverlayView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
     private val ballPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#2AAE7E")
+        color = Color.parseColor("#34D399")
         strokeWidth = 5f
         style = Paint.Style.STROKE
     }
     private val calibrationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#C75450")
+        color = Color.parseColor("#F87171")
         strokeWidth = 4f
         style = Paint.Style.FILL_AND_STROKE
+    }
+    private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#34D399")
+        strokeWidth = 5f
+        strokeCap = Paint.Cap.ROUND
     }
 
     private var imageWidth = 0
     private var imageHeight = 0
 
-    /** Pose landmarks in *view* coordinates, keyed by PoseLandmark type. */
+    /** Pose landmarks in *image* coordinates, keyed by PoseLandmark type. */
     private var landmarks: Map<Int, PointF> = emptyMap()
 
-    /** Ball bounding box in *view* coordinates, or null when not tracked. */
+    /** Ball bounding box in *image* coordinates, or null when not tracked. */
     private var ballBox: RectF? = null
 
-    /** Second player's bounding box in *view* coordinates, if tracked. */
+    /** Second player's bounding box in *image* coordinates, if tracked. */
     private var player2Box: RectF? = null
 
-    /** Recent ball positions (oldest first) in *view* coordinates. */
+    /** Recent ball positions (oldest first) in *image* coordinates. */
     private var ballTrail: List<PointF> = emptyList()
-    private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#2AAE7E")
-        strokeWidth = 5f
-        strokeCap = Paint.Cap.ROUND
-    }
 
     var calibrationMode = false
         set(value) {
             field = value
-            if (value) calibrationPoints.clear()
+            if (value) tappedViewPoints.clear()
             invalidate()
         }
 
-    val calibrationPoints = mutableListOf<PointF>()
+    /** Taps in view coordinates, kept only for drawing the markers. */
+    private val tappedViewPoints = mutableListOf<PointF>()
 
-    /** Called when the user has tapped the second calibration point. */
+    /** Called with both calibration points in *image* coordinates. */
     var onCalibrationPointsReady: ((PointF, PointF) -> Unit)? = null
 
     fun setSourceImageSize(width: Int, height: Int) {
@@ -85,63 +88,83 @@ class OverlayView @JvmOverloads constructor(
         imageHeight = height
     }
 
+    private fun scale(): Float {
+        if (imageWidth == 0 || imageHeight == 0 || width == 0 || height == 0) return 0f
+        return max(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
+    }
+
     /** Maps a point from upright image coordinates to view coordinates. */
     fun imageToView(p: PointF): PointF {
-        if (imageWidth == 0 || imageHeight == 0) return p
-        val scale = max(width.toFloat() / imageWidth, height.toFloat() / imageHeight)
-        val dx = (width - imageWidth * scale) / 2f
-        val dy = (height - imageHeight * scale) / 2f
-        return PointF(p.x * scale + dx, p.y * scale + dy)
+        val s = scale()
+        if (s == 0f) return p
+        val dx = (width - imageWidth * s) / 2f
+        val dy = (height - imageHeight * s) / 2f
+        return PointF(p.x * s + dx, p.y * s + dy)
+    }
+
+    /** Maps a point from view coordinates back to upright image coordinates. */
+    fun viewToImage(p: PointF): PointF {
+        val s = scale()
+        if (s == 0f) return p
+        val dx = (width - imageWidth * s) / 2f
+        val dy = (height - imageHeight * s) / 2f
+        return PointF((p.x - dx) / s, (p.y - dy) / s)
     }
 
     fun update(
-        viewLandmarks: Map<Int, PointF>,
-        viewBallBox: RectF?,
-        viewPlayer2Box: RectF? = null,
-        viewBallTrail: List<PointF> = emptyList(),
+        imageLandmarks: Map<Int, PointF>,
+        imageBallBox: RectF?,
+        imagePlayer2Box: RectF? = null,
+        imageBallTrail: List<PointF> = emptyList(),
     ) {
-        landmarks = viewLandmarks
-        ballBox = viewBallBox
-        player2Box = viewPlayer2Box
-        ballTrail = viewBallTrail
+        landmarks = imageLandmarks
+        ballBox = imageBallBox
+        player2Box = imagePlayer2Box
+        ballTrail = imageBallTrail
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (scale() == 0f && landmarks.isNotEmpty()) return
 
         for ((a, b) in SKELETON_CONNECTIONS) {
-            val pa = landmarks[a] ?: continue
-            val pb = landmarks[b] ?: continue
+            val pa = landmarks[a]?.let(::imageToView) ?: continue
+            val pb = landmarks[b]?.let(::imageToView) ?: continue
             canvas.drawLine(pa.x, pa.y, pb.x, pb.y, skeletonPaint)
         }
         for (p in landmarks.values) {
-            canvas.drawCircle(p.x, p.y, 5f, jointPaint)
+            val v = imageToView(p)
+            canvas.drawCircle(v.x, v.y, 5f, jointPaint)
         }
 
         // Trail fades from transparent (oldest) to solid (newest).
         for (i in 1 until ballTrail.size) {
             trailPaint.alpha = (40 + 180 * i / ballTrail.size).coerceAtMost(220)
-            val a = ballTrail[i - 1]
-            val b = ballTrail[i]
+            val a = imageToView(ballTrail[i - 1])
+            val b = imageToView(ballTrail[i])
             canvas.drawLine(a.x, a.y, b.x, b.y, trailPaint)
         }
 
         ballBox?.let { box ->
-            val radius = max(box.width(), box.height()) / 2f + 8f
-            canvas.drawCircle(box.centerX(), box.centerY(), radius, ballPaint)
+            val tl = imageToView(PointF(box.left, box.top))
+            val br = imageToView(PointF(box.right, box.bottom))
+            val radius = max(br.x - tl.x, br.y - tl.y) / 2f + 8f
+            canvas.drawCircle((tl.x + br.x) / 2f, (tl.y + br.y) / 2f, radius, ballPaint)
         }
 
         player2Box?.let { box ->
-            canvas.drawRoundRect(box, 18f, 18f, skeletonPaint)
+            val tl = imageToView(PointF(box.left, box.top))
+            val br = imageToView(PointF(box.right, box.bottom))
+            canvas.drawRoundRect(RectF(tl.x, tl.y, br.x, br.y), 18f, 18f, skeletonPaint)
         }
 
         if (calibrationMode) {
-            for (p in calibrationPoints) {
+            for (p in tappedViewPoints) {
                 canvas.drawCircle(p.x, p.y, 14f, calibrationPaint)
             }
-            if (calibrationPoints.size == 2) {
-                val (a, b) = calibrationPoints
+            if (tappedViewPoints.size == 2) {
+                val (a, b) = tappedViewPoints
                 canvas.drawLine(a.x, a.y, b.x, b.y, calibrationPaint)
             }
         }
@@ -149,11 +172,14 @@ class OverlayView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!calibrationMode) return super.onTouchEvent(event)
-        if (event.action == MotionEvent.ACTION_DOWN && calibrationPoints.size < 2) {
-            calibrationPoints.add(PointF(event.x, event.y))
+        if (event.action == MotionEvent.ACTION_DOWN && tappedViewPoints.size < 2) {
+            tappedViewPoints.add(PointF(event.x, event.y))
             invalidate()
-            if (calibrationPoints.size == 2) {
-                onCalibrationPointsReady?.invoke(calibrationPoints[0], calibrationPoints[1])
+            if (tappedViewPoints.size == 2) {
+                onCalibrationPointsReady?.invoke(
+                    viewToImage(tappedViewPoints[0]),
+                    viewToImage(tappedViewPoints[1]),
+                )
             }
             return true
         }

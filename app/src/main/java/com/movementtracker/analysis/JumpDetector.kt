@@ -21,7 +21,7 @@ class JumpDetector(
     private var peakRiseM = 0.0
     private var lastTSec = -1.0
 
-    /** [hipY] is the hip midpoint's vertical position in view pixels (down is +). */
+    /** [hipY] is the hip midpoint's vertical position in image pixels (down is +). */
     fun update(tSec: Double, hipY: Double, metersPerPixel: Double?) {
         if (metersPerPixel == null) return
         if (lastTSec >= 0 && tSec - lastTSec > RESET_GAP_SEC) reset()

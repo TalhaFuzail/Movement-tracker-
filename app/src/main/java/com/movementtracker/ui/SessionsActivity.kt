@@ -97,13 +97,12 @@ class SessionsActivity : AppCompatActivity() {
     }
 
     private fun showBests() {
-        val header = findViewById<TextView>(R.id.bests_header)
+        val card = findViewById<View>(R.id.bests_card)
         val body = findViewById<TextView>(R.id.bests_body)
         val exportButton = findViewById<View>(R.id.btn_export)
         val bests = ProgressStats.compute(sessions, System.currentTimeMillis())
         if (bests == null) {
-            header.visibility = View.GONE
-            body.visibility = View.GONE
+            card.visibility = View.GONE
             exportButton.visibility = View.GONE
             return
         }
@@ -126,8 +125,7 @@ class SessionsActivity : AppCompatActivity() {
                 )
             }
         }
-        header.visibility = View.VISIBLE
-        body.visibility = View.VISIBLE
+        card.visibility = View.VISIBLE
         body.text = lines.joinToString("\n")
     }
 

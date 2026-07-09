@@ -51,7 +51,7 @@ class ActivityClassifier(
         classify(tSec, peakKmh, approachKmh)
     }
 
-    /** Call once per frame with everything in the same (view) coordinate space. */
+    /** Call once per frame with everything in the same (image) coordinate space. */
     fun update(
         tSec: Double,
         landmarks: Map<Int, PointF>,
