@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.MediaController
 import android.widget.TextView
@@ -79,7 +78,8 @@ class ReplayActivity : AppCompatActivity() {
                     getString(R.string.replay_event_jump, time, (e.extras["heightM"] ?: 0.0) * 100)
                 else -> getString(R.string.replay_event_ball, time, e.peakBallKmh)
             }
-            val button = Button(this).apply {
+            // MaterialButton picks up the chip style from the camera theme.
+            val button = com.google.android.material.button.MaterialButton(this).apply {
                 text = label
                 setOnClickListener {
                     // Jump slightly before the event so the approach is visible.
@@ -89,7 +89,13 @@ class ReplayActivity : AppCompatActivity() {
                     videoView.start()
                 }
             }
-            row.addView(button)
+            row.addView(
+                button,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { marginEnd = (8 * resources.displayMetrics.density).toInt() },
+            )
         }
     }
 

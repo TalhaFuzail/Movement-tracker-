@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,82 +14,119 @@
             android:id="@+id/detail_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="20sp"
+            android:textColor="@color/text_primary"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <Button
             android:id="@+id/btn_replay"
+            style="@style/Widget.MovementTracker.FilledButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="14dp"
             android:text="@string/btn_replay"
             android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/detail_stats"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:lineSpacingExtra="6dp"
-            android:textSize="16sp" />
-
-        <TextView
-            android:id="@+id/detail_chart_header"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/chart_header"
-            android:textAllCaps="true"
-            android:letterSpacing="0.08"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp"
-            android:visibility="gone" />
-
-        <com.movementtracker.ui.SpeedChartView
-            android:id="@+id/detail_chart"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="180dp"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/detail_events_header"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/events_header"
-            android:textAllCaps="true"
-            android:letterSpacing="0.08"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
-            android:id="@+id/detail_events"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:lineSpacingExtra="6dp"
-            android:textSize="15sp" />
+            <TextView
+                android:id="@+id/detail_stats"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="7dp"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
+        </LinearLayout>
 
-        <TextView
-            android:id="@+id/detail_suggestions_header"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/detail_chart_card"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/suggestions_header"
-            android:textAllCaps="true"
-            android:letterSpacing="0.08"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp"
-            android:visibility="gone" />
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
 
-        <TextView
-            android:id="@+id/detail_suggestions"
-            android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/detail_chart_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/chart_header"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <com.movementtracker.ui.SpeedChartView
+                android:id="@+id/detail_chart"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:lineSpacingExtra="6dp"
-            android:textSize="15sp"
-            android:visibility="gone" />
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/detail_events_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/events_header"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/detail_events"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="7dp"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/detail_suggestions_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/detail_suggestions_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/suggestions_header"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/detail_suggestions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="6dp"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

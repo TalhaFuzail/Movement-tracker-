@@ -26,10 +26,11 @@ timeline**, keeps **personal bests** with a monthly trend, warns when the
 | What | How |
 |---|---|
 | Player detection | [ML Kit Pose Detection](https://developers.google.com/ml-kit/vision/pose-detection) finds 33 body landmarks per frame |
-| Player speed | The hip midpoint is tracked across frames; displacement over a ~0.35 s sliding window → m/s → km/h |
+| Player speed | The hip midpoint is tracked across frames; velocity is a **least-squares linear fit** of position over a ~0.35 s sliding window (every sample contributes, so ML jitter mostly cancels) → m/s → km/h |
 | Ball detection | ML Kit Object Detection (stream mode, multi-object) with a bundled TFLite classifier whose classes include soccer/cricket/tennis/base/rugby balls — labelled balls are preferred, shape heuristics (small, round-ish) are the fallback, and tracking IDs follow it across frames |
-| Ball speed | Same sliding-window math with a short (~0.12 s) window so kick peaks aren't averaged away; the **peak** is kept until you reset it |
-| Pixels → metres | **AR (best):** ARCore measures the distance to the playing surface; scale follows from the camera's focal length. **Manual:** tap two points a known distance apart. **Auto:** estimated from the player's apparent height (assumes 1.70 m) |
+| Ball speed | Same fitted-velocity math with a short (~0.12 s) window so kick peaks aren't averaged away; peaks are read from the **unsmoothed** fit and kept until you reset them |
+| Glitch rejection | Samples implying a physically impossible speed (>54 km/h hips, >220 km/h ball — a tracker re-lock, not motion) are discarded instead of showing up as fake bursts |
+| Pixels → metres | **AR (best):** ARCore measures the distance to the playing surface; scale follows from the camera's focal length. **Manual:** tap two points a known distance apart. **Auto:** from the player's apparent eye-to-ankle span with an anthropometric ratio — only while the full body is visible and upright, so a torso-only frame can't corrupt the scale. All scales live in image space, so they survive rotation and don't depend on screen layout |
 | Sessions | Start/Stop from the camera screen; speed timeline, distance, sprints and ball events are saved as JSON in private app storage — nothing leaves the device |
 | Activity detection | A rolling window of pose landmarks is inspected when the ball speed spikes: wrist above head + fast arm swing → cricket bowl; ankle beside ball + fast leg swing → soccer shot; sustained >14 km/h → sprint |
 | Suggestions | Computed from measured ratios (ball-to-approach speed, foot-to-ball energy transfer, best-vs-average delivery gap, acceleration in km/h per second) — every tip quotes your actual numbers |

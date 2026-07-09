@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light theme for the content screens (sessions, detail, slow-mo). -->
     <style name="Theme.MovementTracker" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorSecondary">@color/accent</item>
@@ -12,10 +13,65 @@
         <item name="materialButtonStyle">@style/Widget.MovementTracker.Button</item>
     </style>
 
-    <!-- Quiet, flat buttons: accent text on a bare surface, no elevation. -->
+    <!-- Dark, edge-to-edge theme for screens built around the camera/video. -->
+    <style name="Theme.MovementTracker.Camera" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_bright</item>
+        <item name="colorSecondary">@color/accent_bright</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="materialButtonStyle">@style/Widget.MovementTracker.ChipButton</item>
+    </style>
+
+    <!-- Quiet, flat buttons for light screens: accent text, no elevation. -->
     <style name="Widget.MovementTracker.Button" parent="Widget.Material3.Button.TextButton">
         <item name="android:textColor">@color/accent</item>
         <item name="android:textSize">15sp</item>
         <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <!-- Filled pill button for light screens (primary actions). -->
+    <style name="Widget.MovementTracker.FilledButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/accent</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">15sp</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <!-- Translucent pill chips floating over the camera feed. -->
+    <style name="Widget.MovementTracker.ChipButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">13sp</item>
+        <item name="backgroundTint">@color/chip_bg</item>
+        <item name="cornerRadius">22dp</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <!-- The big session start/stop pill. Colors are swapped in code while
+         recording (white → record red). -->
+    <style name="Widget.MovementTracker.RecordButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@android:color/white</item>
+        <item name="android:textColor">#0B0B0B</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">28dp</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingStart">36dp</item>
+        <item name="android:paddingEnd">36dp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
     </style>
 </resources>

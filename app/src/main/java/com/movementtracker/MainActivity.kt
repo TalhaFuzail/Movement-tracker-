@@ -74,17 +74,26 @@ class MainActivity : AppCompatActivity() {
     private var frameAnalyzer: FrameAnalyzer? = null
 
     // Player speed is smoothed over a longer window (running is sustained
-    // motion); ball speed uses a short window so a kick's peak isn't averaged away.
-    private val playerSpeed = SpeedCalculator(windowSeconds = 0.35, smoothing = 0.35)
-    private val ballSpeed = SpeedCalculator(windowSeconds = 0.12, smoothing = 0.6)
+    // motion); ball speed uses a short window so a kick's peak isn't averaged
+    // away. Max-speed gates reject mistracked detections: ~54 km/h for a
+    // human hip, ~220 km/h for a ball.
+    private val playerSpeed = SpeedCalculator(
+        windowSeconds = 0.35, smoothing = 0.35, maxSpeedMetersPerSecond = 15.0,
+    )
+    private val ballSpeed = SpeedCalculator(
+        windowSeconds = 0.12, smoothing = 0.6, maxSpeedMetersPerSecond = 62.0,
+    )
     private val ballTracker = BallTracker()
     private val calibration = CalibrationManager()
 
     // Second player: box-centre tracking of another detected person.
-    private val player2Speed = SpeedCalculator(windowSeconds = 0.35, smoothing = 0.35)
+    private val player2Speed = SpeedCalculator(
+        windowSeconds = 0.35, smoothing = 0.35, maxSpeedMetersPerSecond = 15.0,
+    )
     private val personTracker = PersonTracker()
     private var lastPlayer2SeenSec = -1.0
     private lateinit var player2SpeedText: TextView
+    private lateinit var player2Chip: android.view.View
 
     private var peakBallKmh = 0.0
     private var lastBallSeenSec = -1.0
@@ -97,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private var lastLaunchAngleDeg = 0.0
     private var lastLaunchTimeSec = -1000.0
     private lateinit var launchAngleText: TextView
+    private lateinit var launchChip: android.view.View
 
     private lateinit var sessionStore: SessionStore
     private lateinit var sessionButton: Button
@@ -210,21 +220,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Edge-to-edge: the camera feed draws behind the transparent bars.
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
         previewView = findViewById(R.id.preview_view)
         overlay = findViewById(R.id.overlay_view)
         playerSpeedText = findViewById(R.id.player_speed)
         player2SpeedText = findViewById(R.id.player2_speed)
+        player2Chip = findViewById(R.id.chip_player2)
         ballSpeedText = findViewById(R.id.ball_speed)
         peakBallText = findViewById(R.id.peak_ball_speed)
         launchAngleText = findViewById(R.id.launch_angle)
+        launchChip = findViewById(R.id.chip_launch)
         calibrationStatusText = findViewById(R.id.calibration_status)
 
         findViewById<Button>(R.id.btn_calibrate).setOnClickListener { startCalibration() }
         findViewById<Button>(R.id.btn_reset_peak).setOnClickListener {
             peakBallKmh = 0.0
-            peakBallText.text = getString(R.string.peak_ball_speed_format, 0.0)
+            peakBallText.text = getString(R.string.peak_value_zero)
         }
 
         sessionStore = SessionStore(this)
@@ -338,33 +352,32 @@ class MainActivity : AppCompatActivity() {
             android.os.SystemClock.elapsedRealtime() / 1000.0 - result.timestampSec
 
         // --- Player -------------------------------------------------------
-        val viewLandmarks = result.landmarks.mapValues { (_, p) -> overlay.imageToView(p) }
+        // Everything runs in upright image coordinates; the overlay maps to
+        // screen pixels only when drawing. The scale is therefore independent
+        // of the current layout and survives rotation.
+        val landmarks = result.landmarks
 
-        if (viewLandmarks.isNotEmpty()) {
-            val ys = viewLandmarks.values.map { it.y }
-            val personHeightPx = (ys.max() - ys.min())
-            calibration.updateAuto(personHeightPx)
-        }
+        calibration.updateAuto(landmarks)
 
         val metersPerPixel = calibration.metersPerPixel
 
-        val leftHip = viewLandmarks[PoseLandmark.LEFT_HIP]
-        val rightHip = viewLandmarks[PoseLandmark.RIGHT_HIP]
+        val leftHip = landmarks[PoseLandmark.LEFT_HIP]
+        val rightHip = landmarks[PoseLandmark.RIGHT_HIP]
         if (leftHip != null && rightHip != null && metersPerPixel != null) {
             val hipCenter = PointF((leftHip.x + rightHip.x) / 2f, (leftHip.y + rightHip.y) / 2f)
             playerSpeed.add(result.timestampSec, hipCenter, metersPerPixel)
             playerSpeedText.text =
-                getString(R.string.player_speed_format, playerSpeed.kmPerHour)
+                getString(R.string.speed_value_format, playerSpeed.kmPerHour)
             sessionRecorder?.addPlayerSample(result.timestampSec, playerSpeed.kmPerHour)
             jumpDetector.update(result.timestampSec, hipCenter.y.toDouble(), metersPerPixel)
         }
 
         // --- Second player --------------------------------------------------
-        var viewPlayer2Box: RectF? = null
+        var player2Box: RectF? = null
         if (metersPerPixel != null) {
-            val poseBox = if (result.landmarks.isEmpty()) null else {
-                val xs = result.landmarks.values.map { it.x }
-                val ys = result.landmarks.values.map { it.y }
+            val poseBox = if (landmarks.isEmpty()) null else {
+                val xs = landmarks.values.map { it.x }
+                val ys = landmarks.values.map { it.y }
                 RectF(xs.min(), ys.min(), xs.max(), ys.max())
             }
             val person2 =
@@ -372,19 +385,16 @@ class MainActivity : AppCompatActivity() {
             if (person2 != null) {
                 if (personTracker.startedNewTrack) player2Speed.reset()
                 val box = person2.boundingBox
-                val topLeft = overlay.imageToView(PointF(box.left.toFloat(), box.top.toFloat()))
-                val bottomRight =
-                    overlay.imageToView(PointF(box.right.toFloat(), box.bottom.toFloat()))
-                viewPlayer2Box = RectF(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)
-                val center = PointF(viewPlayer2Box.centerX(), viewPlayer2Box.centerY())
+                player2Box = RectF(box)
+                val center = PointF(player2Box.centerX(), player2Box.centerY())
                 val kmh = player2Speed.add(result.timestampSec, center, metersPerPixel) * 3.6
                 lastPlayer2SeenSec = result.timestampSec
-                player2SpeedText.visibility = android.view.View.VISIBLE
-                player2SpeedText.text = getString(R.string.player2_speed_format, kmh)
+                player2Chip.visibility = android.view.View.VISIBLE
+                player2SpeedText.text = getString(R.string.speed_value_format, kmh)
             } else if (lastPlayer2SeenSec >= 0 &&
                 result.timestampSec - lastPlayer2SeenSec > PLAYER2_DISPLAY_TIMEOUT_SEC
             ) {
-                player2SpeedText.visibility = android.view.View.GONE
+                player2Chip.visibility = android.view.View.GONE
             }
         }
 
@@ -392,20 +402,19 @@ class MainActivity : AppCompatActivity() {
         val ball = ballTracker.pick(
             result.objects, result.imageWidth, result.imageHeight, result.timestampSec,
         )
-        var viewBallBox: RectF? = null
+        var ballBox: RectF? = null
         var frameBallKmh: Double? = null
         if (ball != null && metersPerPixel != null) {
             if (ballTracker.startedNewTrack) ballSpeed.reset()
 
-            val box = ball.boundingBox
-            val topLeft = overlay.imageToView(PointF(box.left.toFloat(), box.top.toFloat()))
-            val bottomRight = overlay.imageToView(PointF(box.right.toFloat(), box.bottom.toFloat()))
-            viewBallBox = RectF(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)
-
-            val center = PointF(viewBallBox.centerX(), viewBallBox.centerY())
+            ballBox = RectF(ball.boundingBox)
+            val center = PointF(ballBox.centerX(), ballBox.centerY())
             val kmh = ballSpeed.add(result.timestampSec, center, metersPerPixel) * 3.6
-            frameBallKmh = kmh
-            peakBallKmh = max(peakBallKmh, kmh)
+            // Peaks and event detection use the unsmoothed fit: the EMA is for
+            // a stable display and would shave ~15% off a one-frame maximum.
+            val rawKmh = ballSpeed.rawKmPerHour
+            frameBallKmh = rawKmh
+            peakBallKmh = max(peakBallKmh, rawKmh)
             lastBallSeenSec = result.timestampSec
 
             if (ballTracker.startedNewTrack) ballTrail.clear()
@@ -415,25 +424,25 @@ class MainActivity : AppCompatActivity() {
             ) {
                 ballTrail.removeFirst()
             }
-            updateLaunchAngle(result.timestampSec, center, kmh)
+            updateLaunchAngle(result.timestampSec, center, rawKmh)
 
-            ballSpeedText.text = getString(R.string.ball_speed_format, kmh)
-            peakBallText.text = getString(R.string.peak_ball_speed_format, peakBallKmh)
+            ballSpeedText.text = getString(R.string.speed_value_format, kmh)
+            peakBallText.text = getString(R.string.speed_value_format, peakBallKmh)
         } else if (lastBallSeenSec >= 0 &&
             result.timestampSec - lastBallSeenSec > BALL_DISPLAY_TIMEOUT_SEC
         ) {
-            ballSpeedText.text = getString(R.string.ball_speed_none)
+            ballSpeedText.text = getString(R.string.speed_value_placeholder)
             ballTrail.clear()
             if (result.timestampSec - lastLaunchTimeSec > LAUNCH_DISPLAY_SEC) {
-                launchAngleText.visibility = android.view.View.GONE
+                launchChip.visibility = android.view.View.GONE
             }
         }
 
-        val ballViewCenter = viewBallBox?.let { PointF(it.centerX(), it.centerY()) }
+        val ballCenter = ballBox?.let { PointF(it.centerX(), it.centerY()) }
         activityClassifier.update(
             tSec = result.timestampSec,
-            landmarks = viewLandmarks,
-            ballCenter = ballViewCenter,
+            landmarks = landmarks,
+            ballCenter = ballCenter,
             ballKmh = frameBallKmh,
             playerKmh = playerSpeed.kmPerHour,
             metersPerPixel = metersPerPixel,
@@ -448,7 +457,7 @@ class MainActivity : AppCompatActivity() {
             else -> getString(R.string.calibration_none)
         }
 
-        overlay.update(viewLandmarks, viewBallBox, viewPlayer2Box, ballTrail.map { it.second })
+        overlay.update(landmarks, ballBox, player2Box, ballTrail.map { it.second })
     }
 
     /**
@@ -474,45 +483,50 @@ class MainActivity : AppCompatActivity() {
         launchAngleComputed = true
         lastLaunchAngleDeg = Math.toDegrees(kotlin.math.atan2(dy, kotlin.math.abs(dx)))
         lastLaunchTimeSec = tSec
-        launchAngleText.visibility = android.view.View.VISIBLE
-        launchAngleText.text = getString(R.string.launch_angle_format, lastLaunchAngleDeg)
+        launchChip.visibility = android.view.View.VISIBLE
+        launchAngleText.text = getString(R.string.launch_angle_value_format, lastLaunchAngleDeg)
     }
 
     /**
-     * Converts an AR distance measurement into a view-space metres-per-pixel
+     * Converts an AR distance measurement into an image-space metres-per-pixel
      * scale. At depth d the camera sees d/fx metres per sensor pixel; scaling
      * by the ratio of sensor to analysis resolution (along the long axis,
-     * whose field of view both streams share) and then by the preview's
-     * image-to-view zoom gives the scale our speed math runs in.
+     * whose field of view both streams share) gives the scale our speed math
+     * runs in — no dependency on how the preview happens to be laid out.
      */
     private fun applyPendingArCalibration(result: FrameResult) {
         val (distanceM, focalPx, arLongPx) = pendingArCalibration ?: return
-        if (distanceM <= 0 || focalPx <= 0 || arLongPx <= 0) {
-            pendingArCalibration = null
-            return
-        }
+        pendingArCalibration = null
+        if (distanceM <= 0 || focalPx <= 0 || arLongPx <= 0) return
+
         val analysisLongPx = max(result.imageWidth, result.imageHeight).toDouble()
         val metersPerImagePixel = distanceM * arLongPx / (focalPx * analysisLongPx)
 
-        val origin = overlay.imageToView(PointF(0f, 0f))
-        val unit = overlay.imageToView(PointF(1f, 0f))
-        val viewScale = (unit.x - origin.x).toDouble()
-        if (viewScale <= 0) return  // overlay not laid out yet; retry next frame
-
-        calibration.setManualMetersPerPixel(metersPerImagePixel / viewScale, fromAr = true)
+        calibration.setManualMetersPerPixel(metersPerImagePixel, fromAr = true)
         playerSpeed.reset()
         ballSpeed.reset()
-        pendingArCalibration = null
         Toast.makeText(this, R.string.ar_calibration_applied, Toast.LENGTH_SHORT).show()
     }
 
     // --- Session recording ---------------------------------------------------
+
+    private fun setRecordButtonRecording(recording: Boolean) {
+        sessionButton.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            if (recording) ContextCompat.getColor(this, R.color.record)
+            else android.graphics.Color.WHITE
+        )
+        sessionButton.setTextColor(
+            if (recording) android.graphics.Color.WHITE
+            else android.graphics.Color.parseColor("#0B0B0B")
+        )
+    }
 
     private fun toggleSession() {
         val recorder = sessionRecorder
         if (recorder == null) {
             sessionRecorder = SessionRecorder(System.currentTimeMillis())
             sessionButton.text = getString(R.string.btn_session_stop)
+            setRecordButtonRecording(true)
             startReplayRecording()
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED
@@ -525,6 +539,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             sessionRecorder = null
             sessionButton.text = getString(R.string.btn_session_start)
+            setRecordButtonRecording(false)
             if (recorder.isEmpty) {
                 Toast.makeText(this, R.string.session_discarded_empty, Toast.LENGTH_SHORT).show()
             } else {
@@ -810,7 +825,8 @@ class MainActivity : AppCompatActivity() {
         const val TRAIL_SECONDS = 1.2
         const val LAUNCH_SPEED_KMH = 20.0
         const val LAUNCH_MEASURE_SEC = 0.15
-        const val MIN_LAUNCH_TRAVEL_PX = 24.0
+        /** In image pixels (720p analysis stream), not screen pixels. */
+        const val MIN_LAUNCH_TRAVEL_PX = 16.0
         const val LAUNCH_MATCH_WINDOW_SEC = 1.0
         const val LAUNCH_DISPLAY_SEC = 6.0
         const val SHAKE_THRESHOLD_RAD_S = 0.12

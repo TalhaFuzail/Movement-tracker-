@@ -6,9 +6,10 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import com.google.android.gms.tasks.Tasks
+import com.google.mlkit.common.model.LocalModel
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.objects.ObjectDetection
-import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
+import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
 import com.google.mlkit.vision.pose.PoseDetection
 import com.google.mlkit.vision.pose.PoseLandmark
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
@@ -40,10 +41,20 @@ class SlowMoAnalyzer(private val context: Context) {
                 .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
                 .build()
         )
+        // Same labelled detector as the live camera, so BallTracker's
+        // ball-class preference works here too instead of falling back to
+        // shape heuristics for the whole clip.
         val objectDetector = ObjectDetection.getClient(
-            ObjectDetectorOptions.Builder()
-                .setDetectorMode(ObjectDetectorOptions.STREAM_MODE)
+            CustomObjectDetectorOptions.Builder(
+                LocalModel.Builder()
+                    .setAssetFilePath("ball_labeler.tflite")
+                    .build()
+            )
+                .setDetectorMode(CustomObjectDetectorOptions.STREAM_MODE)
                 .enableMultipleObjects()
+                .enableClassification()
+                .setClassificationConfidenceThreshold(0.25f)
+                .setMaxPerObjectLabelCount(3)
                 .build()
         )
 
@@ -72,10 +83,14 @@ class SlowMoAnalyzer(private val context: Context) {
             }
             val calibration = CalibrationManager()
             val ballTracker = BallTracker()
-            val playerSpeed = SpeedCalculator(windowSeconds = 0.3, smoothing = 0.35)
+            val playerSpeed = SpeedCalculator(
+                windowSeconds = 0.3, smoothing = 0.35, maxSpeedMetersPerSecond = 15.0,
+            )
             // Very short window: at 240 fps that is still ~15 frames of data,
             // and it preserves the kick's true peak instead of averaging it away.
-            val ballSpeed = SpeedCalculator(windowSeconds = 0.06, smoothing = 0.7)
+            val ballSpeed = SpeedCalculator(
+                windowSeconds = 0.06, smoothing = 0.7, maxSpeedMetersPerSecond = 62.0,
+            )
 
             val total = frameCount.coerceAtMost(MAX_FRAMES)
             for (i in 0 until total) {
@@ -96,10 +111,7 @@ class SlowMoAnalyzer(private val context: Context) {
                     if (lm.inFrameLikelihood > 0.5f) landmarks[lm.landmarkType] = lm.position
                 }
 
-                if (landmarks.isNotEmpty()) {
-                    val ys = landmarks.values.map { it.y }
-                    calibration.updateAuto(ys.max() - ys.min())
-                }
+                calibration.updateAuto(landmarks)
                 val metersPerPixel = calibration.metersPerPixel
 
                 var ballKmh: Double? = null
@@ -111,7 +123,9 @@ class SlowMoAnalyzer(private val context: Context) {
                         ball.boundingBox.exactCenterX(),
                         ball.boundingBox.exactCenterY(),
                     )
-                    ballKmh = ballSpeed.add(tSec, ballCenter, metersPerPixel) * 3.6
+                    ballSpeed.add(tSec, ballCenter, metersPerPixel)
+                    // Peaks/episodes read the unsmoothed fit, same as live.
+                    ballKmh = ballSpeed.rawKmPerHour
                 }
 
                 val leftHip = landmarks[PoseLandmark.LEFT_HIP]

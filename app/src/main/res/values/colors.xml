@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- One accent, warm off-white surfaces, near-black text. Nothing else. -->
-    <color name="accent">#0E6B4A</color>
-    <color name="background">#FAFAF8</color>
-    <color name="text_primary">#1B1B1B</color>
-    <color name="text_secondary">#6E6E6E</color>
-    <color name="divider">#E4E4DF</color>
-    <!-- Translucent white panel used over the camera feed -->
-    <color name="panel_scrim">#EEFFFFFF</color>
+    <!-- One accent in two strengths (light screens / dark camera HUD),
+         warm off-white surfaces, near-black text. Nothing else. -->
+    <color name="accent">#0A7C5A</color>
+    <color name="accent_bright">#34D399</color>
+    <color name="background">#F7F7F5</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="text_primary">#171A18</color>
+    <color name="text_secondary">#707572</color>
+    <color name="divider">#E8E8E3</color>
+
+    <!-- Camera HUD: translucent dark chips with white text -->
+    <color name="chip_bg">#99000000</color>
+    <color name="chip_label">#99FFFFFF</color>
+    <color name="warning">#FBBF24</color>
+    <color name="record">#E5484D</color>
 </resources>

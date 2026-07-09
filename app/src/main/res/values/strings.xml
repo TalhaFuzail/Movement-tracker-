@@ -7,19 +7,24 @@
     <string name="onboarding_body">1. Film side-on — motion across the frame measures true, motion toward the camera doesn\'t.\n\n2. Keep the phone still — lean it against something or use a tripod.\n\n3. Calibrate — tap Calibrate to set your height, mark a known distance, or use AR scale.</string>
     <string name="onboarding_ok">Got it</string>
 
-    <string name="player_speed_placeholder">Player: — km/h</string>
-    <string name="ball_speed_placeholder">Ball: — km/h</string>
-    <string name="peak_ball_speed_placeholder">Peak ball: 0.0 km/h</string>
-    <string name="ball_speed_none">Ball: — km/h</string>
+    <!-- HUD stat chips: value and label are separate views -->
+    <string name="speed_value_placeholder">—</string>
+    <string name="speed_value_format">%1$.1f</string>
+    <string name="peak_value_zero">0.0</string>
+    <string name="launch_angle_value_format">%1$.0f°</string>
+    <string name="label_player_speed">Player · km/h</string>
+    <string name="label_player2_speed">Player 2 · km/h</string>
+    <string name="label_ball_speed">Ball · km/h</string>
+    <string name="label_peak_ball">Peak ball · km/h</string>
+    <string name="label_launch_angle">Launch angle</string>
 
+    <!-- Replay overlay -->
+    <string name="player_speed_placeholder">Player: — km/h</string>
     <string name="player_speed_format">Player: %1$.1f km/h</string>
-    <string name="player2_speed_format">Player 2: %1$.1f km/h</string>
-    <string name="ball_speed_format">Ball: %1$.1f km/h</string>
-    <string name="peak_ball_speed_format">Peak ball: %1$.1f km/h</string>
-    <string name="launch_angle_format">Launch angle: %1$.0f°</string>
+
     <string name="event_launch_suffix">" · launch %1$.0f°"</string>
 
-    <string name="shake_warning">Phone is moving — speeds unreliable. Use a tripod or prop it still.</string>
+    <string name="shake_warning">Phone moving — steady it for accurate speeds</string>
 
     <string name="btn_calibrate">Calibrate</string>
     <string name="btn_reset_peak">Reset peak</string>

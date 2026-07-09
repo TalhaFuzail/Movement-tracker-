@@ -20,6 +20,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:theme="@style/Theme.MovementTracker.Camera"
             android:screenOrientation="fullSensor"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
@@ -41,6 +42,7 @@
         <activity
             android:name=".ui.ReplayActivity"
             android:exported="false"
+            android:theme="@style/Theme.MovementTracker.Camera"
             android:label="@string/title_replay" />
 
         <activity
@@ -51,6 +53,7 @@
         <activity
             android:name=".ar.ArCalibrateActivity"
             android:exported="false"
+            android:theme="@style/Theme.MovementTracker.Camera"
             android:label="@string/title_ar_calibrate"
             android:screenOrientation="locked" />
 
